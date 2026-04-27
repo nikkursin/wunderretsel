@@ -1,47 +1,63 @@
 import QtQuick
+import QtQuick.Effects
 
-Rectangle {
+Item {
     id: card
 
     signal clicked()
 
-    width: parent ? parent.width : 300
-    height: 120
+    property bool interactive: true
+    property bool hoverEnabled: true
+    property real normalScale: 1.0
+    property real hoverScale: 1.015
+    property real pressedScale: 0.975
+    property real radius: 28
+    property alias color: bg.color
+    property alias border: bg.border
 
-    radius: 28
-    color: Qt.rgba(1, 1, 1, 0.62)
-
-    border.color: Qt.rgba(0.45, 0.15, 0.3, 0.08)
-    border.width: 1
-
-    scale: mouseArea.pressed ? 0.98 : 1.0
-    opacity: mouseArea.containsMouse ? 0.96 : 1.0
-
-    Behavior on scale {
-        NumberAnimation {
-            duration: 120
-            easing.type: Easing.OutQuad
-        }
-    }
-
-    Behavior on opacity {
-        NumberAnimation {
-            duration: 120
-        }
-    }
+    implicitHeight: 120
 
     Rectangle {
+        id: bg
         anchors.fill: parent
-        anchors.topMargin: 10
         radius: card.radius
-        color: Qt.rgba(0.38, 0.06, 0.2, 0.08)
-        z: -1
+        color: Qt.rgba(1, 1, 1, 0.82)
+        border { color: Qt.rgba(0.45, 0.15, 0.3, 0.08); width: 1 }
+    }
+
+    scale: {
+        if (!interactive) return normalScale
+        if (mouseArea.pressed) return pressedScale
+        if (mouseArea.containsMouse) return hoverScale
+        return normalScale
+    }
+
+    Behavior on scale {
+        NumberAnimation { duration: 160; easing.type: Easing.OutCubic }
+    }
+
+    layer.enabled: true
+    layer.effect: MultiEffect {
+        shadowEnabled: true
+        shadowColor: Qt.rgba(0.38, 0.06, 0.2, 1)
+        shadowOpacity: mouseArea.containsMouse ? 0.18 : 0.12
+        shadowBlur: 0.8
+        shadowVerticalOffset: mouseArea.containsMouse ? 8 : 5
+
+        Behavior on shadowOpacity {
+            NumberAnimation { duration: 160; easing.type: Easing.OutCubic }
+        }
+        Behavior on shadowVerticalOffset {
+            NumberAnimation { duration: 160; easing.type: Easing.OutCubic }
+        }
     }
 
     MouseArea {
         id: mouseArea
         anchors.fill: parent
-        hoverEnabled: true
+        enabled: card.interactive
+        hoverEnabled: card.hoverEnabled
+        cursorShape: Qt.PointingHandCursor
         onClicked: card.clicked()
     }
 }

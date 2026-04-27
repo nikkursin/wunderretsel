@@ -45,7 +45,7 @@ WRScreen {
                 Image {
                     id: bgImage
                     anchors.fill: parent
-                    source: "qrc:/assets/images/female/sample.jpg"   // your image
+                    source: "qrc:/assets/images/female/sample.jpg"
                     fillMode: Image.PreserveAspectCrop
                 }
 
@@ -53,7 +53,7 @@ WRScreen {
                     anchors.fill: bgImage
                     source: bgImage
                     blurEnabled: true
-                    blur: 0.8          // adjust (0–1)
+                    blur: 0.8
                     saturation: 1.1
                     brightness: 0.1
                 }
@@ -61,14 +61,7 @@ WRScreen {
                 Rectangle {
                     anchors.fill: parent
                     color: "#ffeef5"
-                    opacity: 0.35       // soft overlay like in HTML
-                }
-
-                Rectangle {
-                    anchors.fill: parent
-                    color: "transparent"
-                    border.color: "#ffffff55"
-                    border.width: 1
+                    opacity: 0.35
                 }
             }
 
