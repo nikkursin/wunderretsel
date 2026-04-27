@@ -17,10 +17,6 @@ class StorageManager
 
   private:
     QString m_userFilePath;
-
-    LanguageLevel languageLevelFromString(const QString& value);
-
-    CharacterType characterTypeFromString(const QString& value);
 };
 
 #endif // STORAGEMANAGER_H

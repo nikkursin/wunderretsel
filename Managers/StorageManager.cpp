@@ -46,12 +46,12 @@ UserData StorageManager::loadUserData() {
         root.value("preferences").toObject();
 
     data.level =
-        languageLevelFromString(
+        UserData::languageLevelFromString(
             preferences.value("languageLevel").toString("A1")
             );
 
     data.characterType =
-        characterTypeFromString(
+        UserData::characterTypeFromString(
             preferences.value("characterType").toString("mixed")
             );
 
@@ -59,24 +59,41 @@ UserData StorageManager::loadUserData() {
 }
 
 bool StorageManager::saveUser(const UserData& userData) {
+    QJsonObject root;
+
+           // onboarding flag
+    root["onboardingCompleted"] = userData.isOnboardingCompleted;
+
+           // preferences object
+    QJsonObject preferences;
+
+    preferences["languageLevel"] =
+        UserData::languageLevelToString(userData.level);
+
+    preferences["characterType"] =
+        UserData::characterTypeToString(userData.characterType);
+
+    root["preferences"] = preferences;
+
+           // create JSON document
+    QJsonDocument doc(root);
+    QByteArray jsonData = doc.toJson(QJsonDocument::Indented);
+
+    QFile file(m_userFilePath);
+
+    if (!file.open(QIODevice::WriteOnly | QIODevice::Truncate)) {
+        qDebug() << "Failed to open file for writing:" << m_userFilePath;
+        return false;
+    }
+
+    if (file.write(jsonData) == -1) {
+        qDebug() << "Failed to write JSON to file";
+        file.close();
+        return false;
+    }
+
+    file.close();
+
     return true;
 }
 
-LanguageLevel StorageManager::languageLevelFromString(const QString& value)
-{
-    if (value == "A2") return LanguageLevel::A2;
-    if (value == "B1") return LanguageLevel::B1;
-    if (value == "B2") return LanguageLevel::B2;
-    if (value == "C1") return LanguageLevel::C1;
-    if (value == "C2") return LanguageLevel::C2;
-
-    return LanguageLevel::A1;
-}
-
-CharacterType StorageManager::characterTypeFromString(const QString& value)
-{
-    if (value == "male") return CharacterType::Male;
-    if (value == "female") return CharacterType::Female;
-
-    return CharacterType::Mixed;
-}

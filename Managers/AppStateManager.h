@@ -12,9 +12,6 @@ class AppStateManager : public QObject
     Q_OBJECT
     Q_DISABLE_COPY_MOVE(AppStateManager)
 
-    Q_PROPERTY(bool onboardingCompleted
-                   READ onboardingCompleted
-                       NOTIFY onboardingCompletedChanged)
     Q_PROPERTY(Screen currentScreen READ currentScreen NOTIFY currentScreenChanged)
 
 
@@ -34,6 +31,8 @@ class AppStateManager : public QObject
 
     Screen currentScreen() const;
     bool onboardingCompleted() const;
+    QString languageLevel() const;
+    QString characterType() const;
 
     Q_INVOKABLE void goHome();
     Q_INVOKABLE void goPlay();
@@ -42,8 +41,10 @@ class AppStateManager : public QObject
     Q_INVOKABLE void goOnboarding();
     Q_INVOKABLE void goBack();
 
+    Q_INVOKABLE void completeOnboarding(const QString &languageLevel,
+                                        const QString &characterType);
+
   signals:
-    void onboardingCompletedChanged();
     void currentScreenChanged();
 
   private:

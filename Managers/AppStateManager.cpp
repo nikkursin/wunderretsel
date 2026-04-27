@@ -70,3 +70,18 @@ void AppStateManager::goBack()
     m_currentScreen = m_history.takeLast();
     emit currentScreenChanged();
 }
+
+void AppStateManager::completeOnboarding(const QString &languageLevel,
+                                         const QString &characterType)
+{
+    if (languageLevel.isEmpty() || characterType.isEmpty())
+        return;
+
+    m_userData.level = UserData::languageLevelFromString(languageLevel);
+    m_userData.characterType = UserData::characterTypeFromString(characterType);
+    m_userData.isOnboardingCompleted = true;
+
+    m_storageManager->saveUser(m_userData);
+
+    navigateTo(Home);
+}

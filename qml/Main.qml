@@ -21,7 +21,7 @@ App {
             case AppStateManager.Settings:
                 return settingsComponent
             case AppStateManager.Onboarding:
-                return settingsComponent
+                return onboardingComponent
             default:
                 return homeComponent
             }
