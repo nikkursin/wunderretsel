@@ -33,8 +33,12 @@ file(GLOB_RECURSE QmlFiles RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} qml/*.qml qml/*.
 file(GLOB_RECURSE AssetsFiles RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} assets/* qml/*)
 list(REMOVE_ITEM AssetsFiles ${QmlFiles})
 
+find_package(Qt6 REQUIRED COMPONENTS Core)
+
 qt_add_executable(Wunderretsel
     main.cpp
+    Managers/AppStateManager.cpp
+    Managers/StorageManager.cpp
     ${QmlFiles}
     ${AssetsFiles}
 )
@@ -68,6 +72,7 @@ target_compile_definitions(Wunderretsel
     PRIVATE $<$<OR:$<CONFIG:Debug>,$<CONFIG:RelWithDebInfo>>:QT_QML_DEBUG>)
 
 target_link_libraries(Wunderretsel PRIVATE Felgo)
+target_link_libraries(Wunderretsel PRIVATE Qt6::Core)
 
 # uncomment this line to add Felgo Hot Reload and use hot reloading with your custom C++ code
 # for the remaining steps see here: https://felgo.com/custom-code-reload-app/

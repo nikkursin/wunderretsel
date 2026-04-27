@@ -1,0 +1,26 @@
+{
+  "A1": [
+    { "id": 1, "word": "cat" },
+    { "id": 2, "word": "sun" },
+    { "id": 3, "word": "book" },
+    { "id": 4, "word": "tree" }
+  ],
+  "A2": [
+    { "id": 10, "word": "stone" },
+    { "id": 11, "word": "water" },
+    { "id": 12, "word": "light" },
+    { "id": 13, "word": "green" }
+  ],
+  "B1": [
+    { "id": 20, "word": "forest" },
+    { "id": 21, "word": "silver" },
+    { "id": 22, "word": "window" },
+    { "id": 23, "word": "flower" }
+  ],
+  "B2": [
+    { "id": 30, "word": "freedom" },
+    { "id": 31, "word": "mystery" },
+    { "id": 32, "word": "journey" },
+    { "id": 33, "word": "balance" }
+  ]
+}

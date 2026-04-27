@@ -2,6 +2,10 @@
 #include <FelgoApplication>
 
 #include <QQmlApplicationEngine>
+#include <QQmlContext>
+
+#include "Managers/AppStateManager.h"
+#include "Managers/StorageManager.h"
 
 // Uncomment this line to add Felgo Hot Reload and use hot reloading with your custom C++ code
 //#include <FelgoHotReload>
@@ -19,15 +23,17 @@ int main(int argc, char *argv[])
     // This does not work if using Felgo Developer App, only for Felgo Cloud Builds and local builds
     felgo.setLicenseKey(PRODUCT_LICENSE_KEY);
 
-    // use this during development
-    // for PUBLISHING, use the entry point below
-    felgo.setMainQmlFileName(QStringLiteral("qml/Main.qml"));
+    QSharedPointer<StorageManager> storageManager = QSharedPointer<StorageManager>::create();
+    QScopedPointer<AppStateManager> stateManager(new AppStateManager(storageManager));
 
-    // use this instead of the above call to avoid deployment of the qml files and compile them into the binary with qt's resource system qrc
-    // this is the preferred deployment option for publishing apps to the app stores, because then your qml files and js files are protected
-    // to avoid deployment of your qml files and images, also comment the deploy_resources command in the CMakeLists file
-    // also see the CMakeLists.txt file for more details
-    //felgo.setMainQmlFileName(QStringLiteral("qrc:/qml/Main.qml"));
+    stateManager->init();
+
+    engine.rootContext()->setContextProperty(
+        "appStateManager",
+        stateManager.data()
+        );
+
+    felgo.setMainQmlFileName(QStringLiteral("qrc:/qml/Main.qml"));
 
     engine.load(QUrl(felgo.mainQmlFileName()));
 

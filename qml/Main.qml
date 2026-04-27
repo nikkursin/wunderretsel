@@ -7,9 +7,11 @@ App {
 
             id: navigation
 
-            property bool onboardingCompleted: true
+            Component.onCompleted: {
+                console.log("QML onboardingCompleted:", appStateManager.onboardingCompleted)
+            }
 
-            initialPage: onboardingCompleted
+            initialPage: appStateManager.onboardingCompleted
                 ? Qt.resolvedUrl("Views/WRHomeScreen.qml")
                 : Qt.resolvedUrl("Views/WROnboardingScreen.qml")
         }
