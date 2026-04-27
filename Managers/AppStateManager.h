@@ -15,22 +15,45 @@ class AppStateManager : public QObject
     Q_PROPERTY(bool onboardingCompleted
                    READ onboardingCompleted
                        NOTIFY onboardingCompletedChanged)
+    Q_PROPERTY(Screen currentScreen READ currentScreen NOTIFY currentScreenChanged)
+
 
   public:
+    enum Screen {
+        Home,
+        Play,
+        Gallery,
+        Settings,
+        Onboarding
+    };
+    Q_ENUM(Screen)
+
     explicit AppStateManager(QSharedPointer<StorageManager> storageManager, QObject *parent = nullptr);
 
     bool init();
 
+    Screen currentScreen() const;
     bool onboardingCompleted() const;
 
-  signals:
+    Q_INVOKABLE void goHome();
+    Q_INVOKABLE void goPlay();
+    Q_INVOKABLE void goGallery();
+    Q_INVOKABLE void goSettings();
+    Q_INVOKABLE void goOnboarding();
+    Q_INVOKABLE void goBack();
 
+  signals:
     void onboardingCompletedChanged();
+    void currentScreenChanged();
 
   private:
+    void navigateTo(const Screen& screen);
 
     UserData m_userData;
     QSharedPointer<StorageManager> m_storageManager;
+
+    Screen m_currentScreen = Home;
+    QVector<Screen> m_history;
 
 };
 

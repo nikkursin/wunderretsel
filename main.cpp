@@ -33,6 +33,13 @@ int main(int argc, char *argv[])
         stateManager.data()
         );
 
+    qmlRegisterUncreatableType<AppStateManager>(
+        "Wunderretsel",
+        1, 0,
+        "AppStateManager",
+        "AppStateManager is exposed only for enum access"
+        );
+
     felgo.setMainQmlFileName(QStringLiteral("qrc:/qml/Main.qml"));
 
     engine.load(QUrl(felgo.mainQmlFileName()));

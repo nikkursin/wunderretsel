@@ -1,7 +1,7 @@
 import QtQuick
 import Felgo
 
-AppPage {
+WRScreen {
 
     title: "New Page"
 

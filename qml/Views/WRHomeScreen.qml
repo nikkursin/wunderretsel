@@ -1,4 +1,5 @@
 import QtQuick
+import QtQuick.Effects
 import Felgo
 
 import "../Components"
@@ -31,7 +32,7 @@ WRScreen {
             height: 310
             radius: 28
 
-            Rectangle {
+            Item {
                 anchors {
                     left: parent.left
                     right: parent.right
@@ -39,15 +40,36 @@ WRScreen {
                     margins: 14
                 }
                 height: parent.height - 106
-                radius: 24
+                clip: true
 
-                gradient: Gradient {
-                    GradientStop { position: 0.0; color: "#f9a2c2" }
-                    GradientStop { position: 0.48; color: "#d85d93" }
-                    GradientStop { position: 1.0; color: "#87326d" }
+                Image {
+                    id: bgImage
+                    anchors.fill: parent
+                    source: "qrc:/assets/images/female/sample.jpg"   // your image
+                    fillMode: Image.PreserveAspectCrop
                 }
 
-                opacity: 0.75
+                MultiEffect {
+                    anchors.fill: bgImage
+                    source: bgImage
+                    blurEnabled: true
+                    blur: 0.8          // adjust (0–1)
+                    saturation: 1.1
+                    brightness: 0.1
+                }
+
+                Rectangle {
+                    anchors.fill: parent
+                    color: "#ffeef5"
+                    opacity: 0.35       // soft overlay like in HTML
+                }
+
+                Rectangle {
+                    anchors.fill: parent
+                    color: "transparent"
+                    border.color: "#ffffff55"
+                    border.width: 1
+                }
             }
 
             Row {
