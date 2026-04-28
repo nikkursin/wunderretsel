@@ -21,10 +21,10 @@ int main(int argc, char *argv[])
 
     // Set an optional license key from project file
     // This does not work if using Felgo Developer App, only for Felgo Cloud Builds and local builds
-    felgo.setLicenseKey(PRODUCT_LICENSE_KEY);
+    // felgo.setLicenseKey(PRODUCT_LICENSE_KEY);
 
     QSharedPointer<StorageManager> storageManager = QSharedPointer<StorageManager>::create();
-    QScopedPointer<AppStateManager> stateManager(new AppStateManager(storageManager));
+    QScopedPointer<AppStateManager> stateManager(new AppStateManager(storageManager, engine));
 
     stateManager->init();
 
@@ -36,6 +36,11 @@ int main(int argc, char *argv[])
     felgo.setMainQmlFileName(QStringLiteral("qrc:/qml/Main.qml"));
 
     engine.load(QUrl(felgo.mainQmlFileName()));
+
+    if (engine.rootObjects().isEmpty()) {
+        qCritical() << "Failed to load QML";
+        return -1;
+    }
 
     // to start your project with Felgo Hot Reload, comment (remove) the lines "felgo.setMainQmlFileName ..." & "engine.load ...",
     // and uncomment the line below

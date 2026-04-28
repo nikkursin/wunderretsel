@@ -1,7 +1,7 @@
 #include "AppStateManager.h"
 #include <QDebug>
 
-AppStateManager::AppStateManager(QSharedPointer<StorageManager> storageManager, QObject *parent) : m_storageManager(storageManager), QObject{parent} {}
+AppStateManager::AppStateManager(QSharedPointer<StorageManager> storageManager, QObject *parent) : QObject{parent}, m_storageManager(storageManager){}
 
 bool AppStateManager::init() {
     m_userData = m_storageManager->loadUserData();

@@ -287,6 +287,7 @@ AppPage {
             id: gridWrapper
             Layout.fillWidth: true
             Layout.preferredHeight: xGrid.totalH + dp(4)
+            visible: !root.puzzleCompleted
 
             Grid {
                 id: xGrid
@@ -389,6 +390,7 @@ AppPage {
         Row {
             Layout.alignment: Qt.AlignHCenter
             Layout.preferredHeight: dp(20)
+            visible: !root.puzzleCompleted
             spacing: dp(5)
 
             Repeater {
@@ -431,6 +433,7 @@ AppPage {
             Layout.alignment: Qt.AlignHCenter
             Layout.preferredHeight: dp(34)
             Layout.preferredWidth: Math.max(dp(140), pvText.implicitWidth + dp(40))
+            visible: !root.puzzleCompleted
 
             // Inner shaker — we animate THIS x-offset, never previewArea.x,
             // because previewArea is positioned by ColumnLayout.
@@ -492,6 +495,7 @@ AppPage {
             id: wheelContainer
             Layout.fillWidth: true
             Layout.fillHeight: true
+            visible: !root.puzzleCompleted
             Layout.minimumHeight: dp(140)
 
             Item {
@@ -700,6 +704,7 @@ AppPage {
         RowLayout {
             Layout.fillWidth: true
             Layout.topMargin: dp(2)
+            visible: !root.puzzleCompleted
             spacing: dp(8)
 
             // Clear (secondary, soft)

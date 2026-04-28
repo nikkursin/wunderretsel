@@ -10,7 +10,6 @@
 class AppStateManager : public QObject
 {
     Q_OBJECT
-    Q_DISABLE_COPY_MOVE(AppStateManager)
 
     Q_PROPERTY(Screen currentScreen READ currentScreen NOTIFY currentScreenChanged)
     Q_PROPERTY(QString languageLevel READ languageLevel WRITE setLanguageLevel NOTIFY languageLevelChanged)
