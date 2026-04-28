@@ -174,7 +174,7 @@ AppPage {
                     height: Math.max(0, revealGrid.height / 2)
                     color: root.isWordSolved(index)
                            ? "transparent"
-                           : Qt.rgba(1, 0.96, 0.97, 0.55)
+                           : Qt.rgba(1, 0.96, 0.97, 0.85)
                     Behavior on color { ColorAnimation { duration: 480 } }
                 }
             }
