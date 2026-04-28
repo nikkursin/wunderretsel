@@ -1,7 +1,7 @@
 [
   {
     "id": 1,
-    "source": "qrc:/assets/images/female/1.jpg",
+    "source": "qrc:/assets/images/female/sample.jpg",
     "characterType": "female",
     "level": "A1"
   },
