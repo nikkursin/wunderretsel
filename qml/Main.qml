@@ -1,6 +1,5 @@
 import Felgo
 import QtQuick
-import Wunderretsel 1.0
 import "Views"
 
 App {
@@ -12,15 +11,15 @@ App {
 
         sourceComponent: {
             switch (appStateManager.currentScreen) {
-            case AppStateManager.Home:
+            case 0:
                 return homeComponent
-            case AppStateManager.Play:
+            case 1:
                 return playComponent
-            case AppStateManager.Gallery:
+            case 2:
                 return galleryComponent
-            case AppStateManager.Settings:
+            case 3:
                 return settingsComponent
-            case AppStateManager.Onboarding:
+            case 4:
                 return onboardingComponent
             default:
                 return homeComponent

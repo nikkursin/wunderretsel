@@ -13,13 +13,45 @@ bool AppStateManager::init() {
     return true;
 }
 
+AppStateManager::Screen AppStateManager::currentScreen() const
+{
+    return m_currentScreen;
+}
+
 bool AppStateManager::onboardingCompleted() const {
     return m_userData.isOnboardingCompleted;
 }
 
-AppStateManager::Screen AppStateManager::currentScreen() const
+QString AppStateManager::languageLevel() const
 {
-    return m_currentScreen;
+    return UserData::languageLevelToString(m_userData.level);
+}
+
+void AppStateManager::setLanguageLevel(const QString& level)
+{
+    auto newLevel = UserData::languageLevelFromString(level);
+
+    if (m_userData.level == newLevel)
+        return;
+
+    m_userData.level = newLevel;
+    emit languageLevelChanged();
+}
+
+QString AppStateManager::characterType() const
+{
+    return UserData::characterTypeToString(m_userData.characterType);
+}
+
+void AppStateManager::setCharacterType(const QString& type)
+{
+    auto newType = UserData::characterTypeFromString(type);
+
+    if (m_userData.characterType == newType)
+        return;
+
+    m_userData.characterType = newType;
+    emit characterTypeChanged();
 }
 
 void AppStateManager::navigateTo(const Screen& screen)
@@ -84,4 +116,9 @@ void AppStateManager::completeOnboarding(const QString &languageLevel,
     m_storageManager->saveUser(m_userData);
 
     navigateTo(Home);
+}
+
+void AppStateManager::savePreferences()
+{
+    m_storageManager->saveUser(m_userData);
 }

@@ -13,7 +13,8 @@ class AppStateManager : public QObject
     Q_DISABLE_COPY_MOVE(AppStateManager)
 
     Q_PROPERTY(Screen currentScreen READ currentScreen NOTIFY currentScreenChanged)
-
+    Q_PROPERTY(QString languageLevel READ languageLevel WRITE setLanguageLevel NOTIFY languageLevelChanged)
+    Q_PROPERTY(QString characterType READ characterType WRITE setCharacterType NOTIFY characterTypeChanged)
 
   public:
     enum Screen {
@@ -31,8 +32,12 @@ class AppStateManager : public QObject
 
     Screen currentScreen() const;
     bool onboardingCompleted() const;
+
     QString languageLevel() const;
+    void setLanguageLevel(const QString& level);
+
     QString characterType() const;
+    void setCharacterType(const QString& type);
 
     Q_INVOKABLE void goHome();
     Q_INVOKABLE void goPlay();
@@ -44,8 +49,12 @@ class AppStateManager : public QObject
     Q_INVOKABLE void completeOnboarding(const QString &languageLevel,
                                         const QString &characterType);
 
+    Q_INVOKABLE void savePreferences();
+
   signals:
     void currentScreenChanged();
+    void languageLevelChanged();
+    void characterTypeChanged();
 
   private:
     void navigateTo(const Screen& screen);
