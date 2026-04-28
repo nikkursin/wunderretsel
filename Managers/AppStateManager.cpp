@@ -1,7 +1,7 @@
 #include "AppStateManager.h"
 #include <QDebug>
 
-AppStateManager::AppStateManager(QSharedPointer<StorageManager> storageManager, QObject *parent) : QObject{parent}, m_storageManager(storageManager){}
+AppStateManager::AppStateManager(QSharedPointer<StorageManager> storageManager, QObject *parent) : QObject{parent}, m_storageManager(storageManager), m_puzzleManager(storageManager){}
 
 bool AppStateManager::init() {
     m_userData = m_storageManager->loadUserData();
@@ -54,15 +54,31 @@ void AppStateManager::setCharacterType(const QString& type)
     emit characterTypeChanged();
 }
 
-void AppStateManager::navigateTo(const Screen& screen)
+GeneratedPuzzle AppStateManager::currentPuzzle() const
 {
-    if (m_currentScreen == screen)
-        return;
+    return m_currentPuzzle;
+}
 
-    m_history.append(m_currentScreen);
-    m_currentScreen = screen;
+void AppStateManager::generateNewPuzzle()
+{
+    m_userData = m_storageManager->loadUserData();
 
-    emit currentScreenChanged();
+    m_currentPuzzle = m_puzzleManager.generatePuzzle(
+        m_userData.usedWordsIds,
+        m_userData.unlockedImagesIds,
+        m_userData.level,
+        m_userData.characterType
+        );
+
+    for (const PuzzleWord& word : m_currentPuzzle.words) {
+        if (!m_userData.usedWordsIds.contains(word.id)) {
+            m_userData.usedWordsIds.append(word.id);
+        }
+    }
+
+    m_storageManager->saveUser(m_userData);
+
+    emit currentPuzzleChanged();
 }
 
 void AppStateManager::goHome()
@@ -74,6 +90,8 @@ void AppStateManager::goHome()
 
 void AppStateManager::goPlay()
 {
+    // TODO: Add check on hasOngoingPuzzle
+    generateNewPuzzle();
     navigateTo(Play);
 }
 
@@ -121,4 +139,21 @@ void AppStateManager::completeOnboarding(const QString &languageLevel,
 void AppStateManager::savePreferences()
 {
     m_storageManager->saveUser(m_userData);
+}
+
+void AppStateManager::navigateTo(const Screen& screen)
+{
+    if (m_currentScreen == screen)
+        return;
+
+    m_history.append(m_currentScreen);
+    m_currentScreen = screen;
+
+    emit currentScreenChanged();
+}
+
+bool AppStateManager::ongoingPuzzlePresent() const
+{
+    return hasOngoingPuzzle &&
+           m_currentPuzzle.solvedWordIds.size() < m_currentPuzzle.words.size();
 }

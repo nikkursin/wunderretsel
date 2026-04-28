@@ -24,7 +24,7 @@ int main(int argc, char *argv[])
     // felgo.setLicenseKey(PRODUCT_LICENSE_KEY);
 
     QSharedPointer<StorageManager> storageManager = QSharedPointer<StorageManager>::create();
-    QScopedPointer<AppStateManager> stateManager(new AppStateManager(storageManager, engine));
+    QScopedPointer<AppStateManager> stateManager(new AppStateManager(storageManager, &engine));
 
     stateManager->init();
 

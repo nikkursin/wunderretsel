@@ -6,15 +6,15 @@ import "../Components"
 
 // Use AppPage so we fully control the background and top bar,
 // without WRScreen's decorative blob layer consuming vertical space.
-AppPage {
+WRScreen {
     id: root
 
     // ── Public signals ───────────────────────────────────────────────────────
     signal nextPuzzleClicked()
     signal galleryClicked()
-    signal backClicked()
+/*    signal backClicked()
 
-    navigationBarHidden: true   // we draw our own minimal top bar
+    navigationBarHidden: true */  // we draw our own minimal top bar
 
     // ── Puzzle data ──────────────────────────────────────────────────────────
     // Bind words / letters / grid to AppStateManager / PuzzleGenerator later.
@@ -213,74 +213,6 @@ AppPage {
         anchors.leftMargin:   dp(12)
         anchors.rightMargin:  dp(12)
         spacing: dp(6)
-
-        // ── Top bar ───────────────────────────────────────────────────────
-        Item {
-            Layout.fillWidth: true
-            Layout.preferredHeight: dp(44)
-
-            // Back button (round translucent chip with shadow)
-            Rectangle {
-                id: backChip
-                width: dp(36); height: dp(36)
-                radius: width / 2
-                anchors.left: parent.left
-                anchors.verticalCenter: parent.verticalCenter
-                color: backArea.pressed
-                       ? Qt.rgba(1, 1, 1, 0.65)
-                       : Qt.rgba(1, 1, 1, 0.84)
-                Behavior on color { ColorAnimation { duration: 140 } }
-
-                Text {
-                    anchors.centerIn: parent
-                    anchors.horizontalCenterOffset: -1
-                    text: "‹"
-                    font.pixelSize: dp(22)
-                    font.weight: Font.DemiBold
-                    color: "#401425"
-                }
-
-                MouseArea {
-                    id: backArea
-                    anchors.fill: parent
-                    onClicked: {
-                        if (typeof appStateManager !== "undefined" && appStateManager.goHome)
-                            appStateManager.goHome()
-                        else
-                            root.backClicked()
-                    }
-                }
-            }
-            // Soft drop shadow under the back chip
-            MultiEffect {
-                anchors.fill: backChip
-                source: backChip
-                shadowEnabled: true
-                shadowColor: "#502A0F1F"
-                shadowOpacity: 0.5
-                shadowBlur: 0.6
-                shadowVerticalOffset: 3
-            }
-
-            // Title — anchored between the back chip and the right edge so it
-            // never overlaps surrounding chrome, with auto font shrinking.
-            Text {
-                anchors.left:  backChip.right
-                anchors.right: parent.right
-                anchors.verticalCenter: parent.verticalCenter
-                anchors.leftMargin:  dp(8)
-                anchors.rightMargin: dp(36)   // visual balance for back chip
-                text: "Wunderrätsel"
-                horizontalAlignment: Text.AlignHCenter
-                fontSizeMode: Text.HorizontalFit
-                minimumPixelSize: dp(14)
-                font.pixelSize: dp(20)
-                font.weight: Font.Black
-                font.letterSpacing: -dp(0.4)
-                color: "#3a0f22"
-                elide: Text.ElideRight
-            }
-        }
 
         // ── Crossword ─────────────────────────────────────────────────────
         Item {

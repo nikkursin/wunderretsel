@@ -12,7 +12,8 @@ StorageManager::StorageManager() {
     m_userFilePath = dir + "/user.json";
 }
 
-UserData StorageManager::loadUserData() {
+UserData StorageManager::loadUserData()
+{
     UserData data;
 
     qDebug() << m_userFilePath;
@@ -31,7 +32,8 @@ UserData StorageManager::loadUserData() {
     file.close();
 
     QJsonParseError parseError;
-    const QJsonDocument doc = QJsonDocument::fromJson(jsonData, &parseError);
+    const QJsonDocument doc =
+        QJsonDocument::fromJson(jsonData, &parseError);
 
     if (parseError.error != QJsonParseError::NoError || !doc.isObject()) {
         return data;
@@ -55,16 +57,36 @@ UserData StorageManager::loadUserData() {
             preferences.value("characterType").toString("mixed")
             );
 
+    const QJsonObject progress =
+        root.value("progress").toObject();
+
+    const QJsonArray usedWordsArray =
+        progress.value("usedWordIds").toArray();
+
+    for (const QJsonValue& value : usedWordsArray) {
+        if (value.isDouble()) {
+            data.usedWordsIds.append(value.toInt());
+        }
+    }
+
+    const QJsonArray unlockedImagesArray =
+        progress.value("unlockedImageIds").toArray();
+
+    for (const QJsonValue& value : unlockedImagesArray) {
+        if (value.isDouble()) {
+            data.unlockedImagesIds.append(value.toInt());
+        }
+    }
+
     return data;
 }
 
-bool StorageManager::saveUser(const UserData& userData) {
+bool StorageManager::saveUser(const UserData& userData)
+{
     QJsonObject root;
 
-           // onboarding flag
     root["onboardingCompleted"] = userData.isOnboardingCompleted;
 
-           // preferences object
     QJsonObject preferences;
 
     preferences["languageLevel"] =
@@ -75,7 +97,26 @@ bool StorageManager::saveUser(const UserData& userData) {
 
     root["preferences"] = preferences;
 
-           // create JSON document
+    QJsonObject progress;
+
+    QJsonArray usedWordsArray;
+
+    for (int wordId : userData.usedWordsIds) {
+        usedWordsArray.append(wordId);
+    }
+
+    progress["usedWordIds"] = usedWordsArray;
+
+    QJsonArray unlockedImagesArray;
+
+    for (int imageId : userData.unlockedImagesIds) {
+        unlockedImagesArray.append(imageId);
+    }
+
+    progress["unlockedImageIds"] = unlockedImagesArray;
+
+    root["progress"] = progress;
+
     QJsonDocument doc(root);
     QByteArray jsonData = doc.toJson(QJsonDocument::Indented);
 
@@ -97,3 +138,88 @@ bool StorageManager::saveUser(const UserData& userData) {
     return true;
 }
 
+QVector<WordEntry> StorageManager::loadWordsByLevel(LanguageLevel level)
+{
+    QVector<WordEntry> result;
+
+    const QString levelKey = UserData::languageLevelToString(level);
+
+    QFile file(":/assets/data/words.json");
+
+    if (!file.open(QIODevice::ReadOnly)) {
+        qWarning() << "Failed to open words.json";
+        return result;
+    }
+
+    const QJsonDocument doc = QJsonDocument::fromJson(file.readAll());
+    file.close();
+
+    if (!doc.isObject()) {
+        qWarning() << "words.json root must be object";
+        return result;
+    }
+
+    const QJsonArray wordsArray = doc.object().value(levelKey).toArray();
+
+    for (const QJsonValue& value : wordsArray) {
+        if (!value.isObject())
+            continue;
+
+        const QJsonObject obj = value.toObject();
+
+        WordEntry entry;
+        entry.id = obj.value("id").toInt(-1);
+        entry.word = obj.value("word").toString();
+        entry.level = level;
+
+        if (entry.id != -1 && !entry.word.isEmpty())
+            result.append(entry);
+    }
+
+    return result;
+}
+
+QVector<ImageEntry> StorageManager::loadImagesByPreference(CharacterType characterType)
+{
+    QVector<ImageEntry> result;
+
+    QFile file(":/assets/data/images.json");
+
+    if (!file.open(QIODevice::ReadOnly)) {
+        qWarning() << "Failed to open images.json";
+        return result;
+    }
+
+    const QJsonDocument doc = QJsonDocument::fromJson(file.readAll());
+    file.close();
+
+    if (!doc.isArray()) {
+        qWarning() << "images.json root must be array";
+        return result;
+    }
+
+    const QString selectedType = UserData::characterTypeToString(characterType);
+
+    for (const QJsonValue& value : doc.array()) {
+        if (!value.isObject())
+            continue;
+
+        const QJsonObject obj = value.toObject();
+
+        const QString imageType = obj.value("characterType").toString();
+
+        if (!(characterType == CharacterType::Mixed ||
+              imageType == selectedType))
+            continue;
+
+        ImageEntry entry;
+        entry.id = obj.value("id").toInt(-1);
+        entry.source = obj.value("source").toString();
+        entry.characterType = UserData::characterTypeFromString(imageType);
+
+        if (entry.id != -1 && !entry.source.isEmpty())
+            result.append(entry);
+    }
+
+    return result;
+}

@@ -2,37 +2,31 @@
   {
     "id": 1,
     "source": "qrc:/assets/images/female/sample.jpg",
-    "characterType": "female",
-    "level": "A1"
+    "characterType": "female"
   },
   {
     "id": 2,
     "source": "qrc:/assets/images/male/2.jpg",
-    "characterType": "male",
-    "level": "A1"
+    "characterType": "male"
   },
   {
     "id": 3,
     "source": "qrc:/assets/images/mixed/3.jpg",
-    "characterType": "mixed",
-    "level": "A2"
+    "characterType": "mixed"
   },
   {
     "id": 4,
     "source": "qrc:/assets/images/female/4.jpg",
-    "characterType": "female",
-    "level": "B1"
+    "characterType": "female"
   },
   {
     "id": 5,
     "source": "qrc:/assets/images/male/5.jpg",
-    "characterType": "male",
-    "level": "B1"
+    "characterType": "male"
   },
   {
     "id": 6,
     "source": "qrc:/assets/images/mixed/6.jpg",
-    "characterType": "mixed",
-    "level": "B2"
+    "characterType": "mixed"
   }
 ]

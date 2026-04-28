@@ -6,6 +6,7 @@
 
 #include "Models/UserData.h"
 #include "StorageManager.h"
+#include "PuzzleManager.h"
 
 class AppStateManager : public QObject
 {
@@ -14,6 +15,9 @@ class AppStateManager : public QObject
     Q_PROPERTY(Screen currentScreen READ currentScreen NOTIFY currentScreenChanged)
     Q_PROPERTY(QString languageLevel READ languageLevel WRITE setLanguageLevel NOTIFY languageLevelChanged)
     Q_PROPERTY(QString characterType READ characterType WRITE setCharacterType NOTIFY characterTypeChanged)
+    Q_PROPERTY(GeneratedPuzzle currentPuzzle
+                   READ currentPuzzle
+                       NOTIFY currentPuzzleChanged)
 
   public:
     enum Screen {
@@ -38,6 +42,10 @@ class AppStateManager : public QObject
     QString characterType() const;
     void setCharacterType(const QString& type);
 
+    GeneratedPuzzle currentPuzzle() const;
+
+    void generateNewPuzzle();
+
     Q_INVOKABLE void goHome();
     Q_INVOKABLE void goPlay();
     Q_INVOKABLE void goGallery();
@@ -54,15 +62,21 @@ class AppStateManager : public QObject
     void currentScreenChanged();
     void languageLevelChanged();
     void characterTypeChanged();
+    void currentPuzzleChanged();
 
   private:
     void navigateTo(const Screen& screen);
 
+    bool ongoingPuzzlePresent() const;
+
     UserData m_userData;
     QSharedPointer<StorageManager> m_storageManager;
+    PuzzleManager m_puzzleManager;
 
     Screen m_currentScreen = Home;
     QVector<Screen> m_history;
+    GeneratedPuzzle m_currentPuzzle;
+    bool hasOngoingPuzzle = false;
 
 };
 

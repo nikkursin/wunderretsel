@@ -39,6 +39,7 @@ qt_add_executable(Wunderretsel
     main.cpp
     Managers/AppStateManager.cpp
     Managers/StorageManager.cpp
+    Managers/PuzzleManager.cpp
     ${QmlFiles}
     ${AssetsFiles}
 )

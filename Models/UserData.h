@@ -1,6 +1,8 @@
 #ifndef USERDATA_H
 #define USERDATA_H
 
+#include <QVector>
+
 enum class LanguageLevel {
     A1,
     A2,
@@ -20,6 +22,8 @@ struct UserData {
     bool isOnboardingCompleted = false;
     LanguageLevel level = LanguageLevel::A1;
     CharacterType characterType = CharacterType::Mixed;
+    QVector<int> usedWordsIds;
+    QVector<int> unlockedImagesIds;
 
     static LanguageLevel languageLevelFromString(const QString& value)
     {
