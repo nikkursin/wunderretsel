@@ -78,6 +78,9 @@ UserData StorageManager::loadUserData()
         }
     }
 
+    data.solvedPuzzleCount =
+        progress.value("solvedPuzzleCount").toInt(0);
+
     return data;
 }
 
@@ -114,6 +117,8 @@ bool StorageManager::saveUser(const UserData& userData)
     }
 
     progress["unlockedImageIds"] = unlockedImagesArray;
+
+    progress["solvedPuzzleCount"] = userData.solvedPuzzleCount;
 
     root["progress"] = progress;
 

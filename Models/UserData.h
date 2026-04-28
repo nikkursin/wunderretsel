@@ -25,6 +25,10 @@ struct UserData {
     QVector<int> usedWordsIds;
     QVector<int> unlockedImagesIds;
 
+    // Number of puzzles the user has fully solved. Drives the
+    // `difficultyFactor` passed to PuzzleManager::generatePuzzle().
+    int solvedPuzzleCount = 0;
+
     static LanguageLevel languageLevelFromString(const QString& value)
     {
         if (value == "A2") return LanguageLevel::A2;

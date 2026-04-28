@@ -17,45 +17,65 @@ WRScreen {
     navigationBarHidden: true */  // we draw our own minimal top bar
 
     // ── Puzzle data ──────────────────────────────────────────────────────────
-    // Bind words / letters / grid to AppStateManager / PuzzleGenerator later.
-    property var puzzleData: ({
-        words:    ["ROSE", "STONE", "NOTE", "TONE"],
-        letters:  ["R", "O", "S", "T", "N", "E"],
-        // 7 × 7 flat grid:  "" = invisible gap | "_" = unsolved cell | letter = cell value
-        grid: [
-            "", "", "R", "O", "S", "E", "",
-            "", "", "_", "", "_", "", "",
-            "S", "T", "O", "N", "E", "", "",
-            "", "", "_", "", "_", "", "",
-            "", "N", "O", "T", "E", "", "",
-            "", "_", "", "", "_", "", "",
-            "", "T", "O", "N", "E", "", ""
-        ],
-        wordRows: [0, 2, 4, 6]
-    })
+    // Bound to AppStateManager.currentPuzzle. Shape:
+    //   { rows, columns, words: [...], letters: [...],
+    //     grid: [rows*columns strings],
+    //     cellWordIds: [rows*columns lists of word indexes],
+    //     wordRows: [...],  imageSource: "qrc:/..." }
+    // "" in `grid` means an invisible gap; any other entry is the cell letter.
+    property var puzzleData: appStateManager.currentPuzzle
+
+    // Grid dimensions, with safe defaults if the backend hasn't populated
+    // them yet (first paint, hot reload, etc.).
+    readonly property int gridRows:    (puzzleData && puzzleData.rows)    ? puzzleData.rows    : 7
+    readonly property int gridColumns: (puzzleData && puzzleData.columns) ? puzzleData.columns : 7
 
     // Letters live in their own property so shuffling doesn't mutate puzzleData.
-    property var letters: puzzleData.letters.slice()
+    property var letters: (puzzleData && puzzleData.letters)
+                          ? puzzleData.letters.slice()
+                          : []
 
     // ── Game state ───────────────────────────────────────────────────────────
     property var  solvedWords:     []
     property var  currentPath:     []
     property bool isDragging:      false
-    property bool puzzleCompleted: solvedWords.length === puzzleData.words.length
+    property bool puzzleCompleted: puzzleData && puzzleData.words
+                                    ? solvedWords.length === puzzleData.words.length
+                                    : false
 
     property bool shaking:  false
     property bool flashing: false
+
+    // One-shot bridge to the backend so we only count a "solved" puzzle
+    // once per generation, regardless of QML re-binding.
+    property bool _solvedReported: false
+    onPuzzleCompletedChanged: {
+        if (puzzleCompleted && !_solvedReported) {
+            _solvedReported = true
+            if (typeof appStateManager !== "undefined"
+                    && appStateManager.notifyPuzzleSolved)
+                appStateManager.notifyPuzzleSolved()
+        }
+    }
+    onPuzzleDataChanged: {
+        // New puzzle arrived → reset solved-state bookkeeping.
+        solvedWords = []
+        _solvedReported = false
+    }
 
     // ── Helpers ──────────────────────────────────────────────────────────────
     function isWordSolved(wordIndex) {
         return solvedWords.indexOf(puzzleData.words[wordIndex]) !== -1
     }
 
+    // A cell is "solved" (revealed) if any of the placed words covering it
+    // has been solved. Works for both pure-row layouts and real crossings.
     function isSolvedCell(cellIndex) {
-        var row = Math.floor(cellIndex / 7)
-        for (var wi = 0; wi < puzzleData.wordRows.length; wi++) {
-            if (puzzleData.wordRows[wi] === row && isWordSolved(wi))
-                return true
+        if (!puzzleData || !puzzleData.cellWordIds) return false
+        var ids = puzzleData.cellWordIds[cellIndex]
+        if (!ids) return false
+        for (var i = 0; i < ids.length; i++) {
+            if (isWordSolved(ids[i])) return true
         }
         return false
     }
@@ -133,7 +153,9 @@ WRScreen {
         Image {
             id: bgImage
             anchors.fill: parent
-            source: "qrc:/assets/images/female/sample.jpg"
+            source: (puzzleData && puzzleData.imageSource)
+                    ? puzzleData.imageSource
+                    : ":/assets/images/female/sample.jpg"
             fillMode: Image.PreserveAspectCrop
             asynchronous: true
             visible: status === Image.Ready
@@ -157,21 +179,25 @@ WRScreen {
             color: Qt.rgba(1, 0.94, 0.96, 0.50)
         }
 
-        // 2 × 2 reveal segments — each unsolved word adds extra rose haze
-        // over its quadrant; solving the word fades that quadrant clear so
-        // more of the photo shows through.
+        // Reveal segments — one per word. Each unsolved word adds extra
+        // rose haze over its quadrant; solving the word fades it clear so
+        // more of the photo shows through. Layout adapts to word count
+        // (4 → 2×2, 5–6 → 2×3, etc.).
         Grid {
             id: revealGrid
             anchors.fill: parent
-            columns: 2
-            rows: 2
+
+            readonly property int wordCount:
+                (puzzleData && puzzleData.words) ? puzzleData.words.length : 0
+            columns: Math.max(1, Math.ceil(Math.sqrt(Math.max(1, wordCount))))
+            rows:    Math.max(1, Math.ceil(wordCount / columns))
 
             Repeater {
-                model: puzzleData.words.length
+                model: revealGrid.wordCount
 
                 Rectangle {
-                    width:  Math.max(0, revealGrid.width  / 2)
-                    height: Math.max(0, revealGrid.height / 2)
+                    width:  Math.max(0, revealGrid.width  / revealGrid.columns)
+                    height: Math.max(0, revealGrid.height / revealGrid.rows)
                     color: root.isWordSolved(index)
                            ? "transparent"
                            : Qt.rgba(1, 0.96, 0.97, 0.85)
@@ -226,25 +252,25 @@ WRScreen {
                 anchors.horizontalCenter: parent.horizontalCenter
                 anchors.verticalCenter: parent.verticalCenter
 
-                columns: 7
-                rows:    7
+                columns: root.gridColumns
+                rows:    root.gridRows
 
                 readonly property real gap: dp(3)
                 // Cell size: clamped by available width AND by page height so
-                // the 7-row grid never crowds out the wheel — height factor
-                // tuned so the whole crossword takes ~22 % of page height.
+                // the grid never crowds out the wheel — height factor tuned
+                // so the whole crossword takes ~22 % of page height.
                 readonly property real cellSz:
                     Math.max(dp(10),
                              Math.min(dp(26),
-                                      Math.min((gridWrapper.width - gap * 6) / 7,
+                                      Math.min((gridWrapper.width - gap * (columns - 1)) / columns,
                                                root.height * 0.026)))
-                readonly property real totalH: cellSz * 7 + gap * 6
+                readonly property real totalH: cellSz * rows + gap * (rows - 1)
 
                 columnSpacing: gap
                 rowSpacing:    gap
 
                 Repeater {
-                    model: puzzleData.grid.length
+                    model: puzzleData && puzzleData.grid ? puzzleData.grid.length : 0
 
                     Item {
                         id: cellHolder
@@ -253,13 +279,18 @@ WRScreen {
                         readonly property bool   isBlank: cv === "_"
                         readonly property bool   solved:  root.isSolvedCell(index)
 
+                        // IMPORTANT: the holder Item must always reserve its
+                        // slot in xGrid (using `visible: !isGap` would collapse
+                        // gap cells to zero size and visually mash the rest of
+                        // the crossword together). We hide the inner Rectangle
+                        // instead, so empty cells render as transparent space.
                         width:  xGrid.cellSz
                         height: xGrid.cellSz
-                        visible: !isGap
 
                         Rectangle {
                             id: cellBg
                             anchors.fill: parent
+                            visible: !cellHolder.isGap
                             radius: xGrid.cellSz * 0.24
                             border.width: 1.2
                             border.color: cellHolder.solved
@@ -326,7 +357,7 @@ WRScreen {
             spacing: dp(5)
 
             Repeater {
-                model: puzzleData.words.length
+                model: puzzleData && puzzleData.words ? puzzleData.words.length : 0
 
                 Rectangle {
                     readonly property bool done: root.isWordSolved(index)

@@ -1,32 +1,34 @@
 [
-  {
-    "id": 1,
-    "source": "qrc:/assets/images/female/sample.jpg",
-    "characterType": "female"
-  },
-  {
-    "id": 2,
-    "source": "qrc:/assets/images/male/2.jpg",
-    "characterType": "male"
-  },
-  {
-    "id": 3,
-    "source": "qrc:/assets/images/mixed/3.jpg",
-    "characterType": "mixed"
-  },
-  {
-    "id": 4,
-    "source": "qrc:/assets/images/female/4.jpg",
-    "characterType": "female"
-  },
-  {
-    "id": 5,
-    "source": "qrc:/assets/images/male/5.jpg",
-    "characterType": "male"
-  },
-  {
-    "id": 6,
-    "source": "qrc:/assets/images/mixed/6.jpg",
-    "characterType": "mixed"
-  }
+  { "id": 1, "source": ":/assets/images/female/sample.jpg", "characterType": "female" },
+  { "id": 2, "source": ":/assets/images/female/1.jpg", "characterType": "female" },
+  { "id": 3, "source": ":/assets/images/female/2.jpg", "characterType": "female" },
+  { "id": 4, "source": ":/assets/images/female/3.jpg", "characterType": "female" },
+  { "id": 5, "source": ":/assets/images/female/4.jpg", "characterType": "female" },
+  { "id": 6, "source": ":/assets/images/female/5.jpg", "characterType": "female" },
+  { "id": 7, "source": ":/assets/images/female/6.jpg", "characterType": "female" },
+  { "id": 8, "source": ":/assets/images/female/7.jpg", "characterType": "female" },
+  { "id": 9, "source": ":/assets/images/female/8.jpg", "characterType": "female" },
+  { "id": 10, "source": ":/assets/images/female/9.jpg", "characterType": "female" },
+
+  { "id": 11, "source": ":/assets/images/male/sample.jpg", "characterType": "male" },
+  { "id": 12, "source": ":/assets/images/male/1.jpg", "characterType": "male" },
+  { "id": 13, "source": ":/assets/images/male/2.jpg", "characterType": "male" },
+  { "id": 14, "source": ":/assets/images/male/3.jpg", "characterType": "male" },
+  { "id": 15, "source": ":/assets/images/male/4.jpg", "characterType": "male" },
+  { "id": 16, "source": ":/assets/images/male/5.jpg", "characterType": "male" },
+  { "id": 17, "source": ":/assets/images/male/6.jpg", "characterType": "male" },
+  { "id": 18, "source": ":/assets/images/male/7.jpg", "characterType": "male" },
+  { "id": 19, "source": ":/assets/images/male/8.jpg", "characterType": "male" },
+  { "id": 20, "source": ":/assets/images/male/9.jpg", "characterType": "male" },
+
+  { "id": 21, "source": ":/assets/images/mixed/sample.jpg", "characterType": "mixed" },
+  { "id": 22, "source": ":/assets/images/mixed/1.jpg", "characterType": "mixed" },
+  { "id": 23, "source": ":/assets/images/mixed/2.jpg", "characterType": "mixed" },
+  { "id": 24, "source": ":/assets/images/mixed/3.jpg", "characterType": "mixed" },
+  { "id": 25, "source": ":/assets/images/mixed/4.jpg", "characterType": "mixed" },
+  { "id": 26, "source": ":/assets/images/mixed/5.jpg", "characterType": "mixed" },
+  { "id": 27, "source": ":/assets/images/mixed/6.jpg", "characterType": "mixed" },
+  { "id": 28, "source": ":/assets/images/mixed/7.jpg", "characterType": "mixed" },
+  { "id": 29, "source": ":/assets/images/mixed/8.jpg", "characterType": "mixed" },
+  { "id": 30, "source": ":/assets/images/mixed/9.jpg", "characterType": "mixed" }
 ]

@@ -3,6 +3,7 @@
 
 #include <QObject>
 #include <QSharedPointer>
+#include <QVariantMap>
 
 #include "Models/UserData.h"
 #include "StorageManager.h"
@@ -15,7 +16,7 @@ class AppStateManager : public QObject
     Q_PROPERTY(Screen currentScreen READ currentScreen NOTIFY currentScreenChanged)
     Q_PROPERTY(QString languageLevel READ languageLevel WRITE setLanguageLevel NOTIFY languageLevelChanged)
     Q_PROPERTY(QString characterType READ characterType WRITE setCharacterType NOTIFY characterTypeChanged)
-    Q_PROPERTY(GeneratedPuzzle currentPuzzle
+    Q_PROPERTY(QVariantMap currentPuzzle
                    READ currentPuzzle
                        NOTIFY currentPuzzleChanged)
 
@@ -42,7 +43,7 @@ class AppStateManager : public QObject
     QString characterType() const;
     void setCharacterType(const QString& type);
 
-    GeneratedPuzzle currentPuzzle() const;
+    QVariantMap currentPuzzle() const;
 
     void generateNewPuzzle();
 
@@ -57,6 +58,11 @@ class AppStateManager : public QObject
                                         const QString &characterType);
 
     Q_INVOKABLE void savePreferences();
+
+    // Called by QML when the player finishes the current puzzle.
+    // Increments the solved-puzzle counter (drives difficulty scaling)
+    // and persists user state.
+    Q_INVOKABLE void notifyPuzzleSolved();
 
   signals:
     void currentScreenChanged();
