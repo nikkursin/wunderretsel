@@ -33,6 +33,12 @@ file(GLOB_RECURSE QmlFiles RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} qml/*.qml qml/*.
 file(GLOB_RECURSE AssetsFiles RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} assets/* qml/*)
 list(REMOVE_ITEM AssetsFiles ${QmlFiles})
 
+# Exclude macOS / editor side-files from the QRC. Including ".DS_Store" or
+# similar in the resources can confuse Qt's resource loader and bloats
+# the APK on Android.
+list(FILTER AssetsFiles EXCLUDE REGEX "(^|/)\\.DS_Store$")
+list(FILTER AssetsFiles EXCLUDE REGEX "(^|/)Thumbs\\.db$")
+
 find_package(Qt6 REQUIRED COMPONENTS Core)
 
 qt_add_executable(Wunderretsel

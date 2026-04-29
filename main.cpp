@@ -24,13 +24,21 @@ int main(int argc, char *argv[])
     // felgo.setLicenseKey(PRODUCT_LICENSE_KEY);
 
     QSharedPointer<StorageManager> storageManager = QSharedPointer<StorageManager>::create();
-    QScopedPointer<AppStateManager> stateManager(new AppStateManager(storageManager, &engine));
+
+    // Owned by `engine` (QObject parent). We deliberately do NOT use a
+    // QScopedPointer here because:
+    //  - the engine already manages the manager's lifetime via QObject parent,
+    //  - QML keeps a raw pointer to it through the context property,
+    //  - mixing scoped + parent ownership leads to double-delete / dangling
+    //    pointer access during shutdown which presents very similar to the
+    //    Android scene-graph crashes we hit at startup.
+    AppStateManager *stateManager = new AppStateManager(storageManager, &engine);
 
     stateManager->init();
 
     engine.rootContext()->setContextProperty(
-        "appStateManager",
-        stateManager.data()
+        QStringLiteral("appStateManager"),
+        stateManager
         );
 
     felgo.setMainQmlFileName(QStringLiteral("qrc:/qml/Main.qml"));

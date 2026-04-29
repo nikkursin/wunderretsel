@@ -9,9 +9,13 @@ bool AppStateManager::init() {
     m_userData = m_storageManager->loadUserData();
     refreshGalleryImages();
 
-    if(m_userData.isOnboardingCompleted) navigateTo(Home);
-        else navigateTo(Onboarding);
-
+    // Set the initial screen *directly*: navigateTo() pushes onto m_history
+    // and emits currentScreenChanged, but at this point QML is not yet
+    // loaded and there's no history to keep. Doing it directly also
+    // guarantees that QML's first read of currentScreen returns the
+    // correct value (no stale default) before the first scene-graph sync.
+    m_currentScreen = m_userData.isOnboardingCompleted ? Home : Onboarding;
+    m_history.clear();
 
     return true;
 }

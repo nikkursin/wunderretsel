@@ -13,10 +13,16 @@ AppPage {
 
     anchors.fill: parent
 
-    FontLoader {
-        id: titleFont
-        source: "qrc:/assets/fonts/PlayfairDisplay-VariableFont_wght.ttf"
-    }
+    // The custom title font is owned by App (Main.qml) — see comment there.
+    // We look it up via the QML scope chain (`app.titleFontFamily`) so that
+    // when the FontLoader hasn't finished loading yet we end up with the
+    // empty string and Qt falls back to the system font. This prevents
+    // the QSGDistanceFieldGlyphCache crash on Android caused by a font
+    // engine being torn down while the scene-graph still holds glyph IDs.
+    readonly property string titleFontFamily:
+        (typeof app !== "undefined" && app && app.titleFontFamily)
+            ? app.titleFontFamily
+            : ""
 
     Rectangle {
         anchors.fill: parent
@@ -117,17 +123,18 @@ AppPage {
             }
 
             Text {
-                width: topBar.width - 92
+                width: Math.max(0, topBar.width - 92)
                 height: 46
 
-                text: root.screenTitle
+                text: String(root.screenTitle || "")
                 font.pixelSize: 42
-                font.family: titleFont.name
+                font.family: root.titleFontFamily
                 font.weight: Font.Bold
                 color: appStateManager ? appStateManager.themeTextPrimary : "#34101f"
 
                 horizontalAlignment: Text.AlignHCenter
                 verticalAlignment: Text.AlignVCenter
+                elide: Text.ElideRight
             }
 
             Item {
