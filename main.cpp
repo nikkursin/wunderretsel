@@ -12,6 +12,16 @@
 
 int main(int argc, char *argv[])
 {
+#ifdef Q_OS_ANDROID
+    // Work around a Qt 6 Android crash in distance-field glyph cache
+    // (QSGDistanceFieldGlyphCache::release/glyphData) that can happen
+    // during early Text node updates on scene-graph sync.
+    //
+    // This keeps behavior unchanged on desktop while forcing the safer
+    // text path on Android startup.
+    qputenv("QSG_DISTANCEFIELD_DISABLED", "1");
+#endif
+
     QApplication app(argc, argv);
 
     FelgoApplication felgo;

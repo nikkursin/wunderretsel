@@ -14,15 +14,14 @@ AppPage {
     anchors.fill: parent
 
     // The custom title font is owned by App (Main.qml) — see comment there.
-    // We look it up via the QML scope chain (`app.titleFontFamily`) so that
-    // when the FontLoader hasn't finished loading yet we end up with the
-    // empty string and Qt falls back to the system font. This prevents
-    // the QSGDistanceFieldGlyphCache crash on Android caused by a font
-    // engine being torn down while the scene-graph still holds glyph IDs.
+    // On Android we intentionally use system font only to avoid Qt 6 glyph
+    // cache crashes in distance-field text rendering on startup.
     readonly property string titleFontFamily:
-        (typeof app !== "undefined" && app && app.titleFontFamily)
+        (Qt.platform.os === "android")
+            ? ""
+            : ((typeof app !== "undefined" && app && app.titleFontFamily)
             ? app.titleFontFamily
-            : ""
+            : "")
 
     Rectangle {
         anchors.fill: parent
