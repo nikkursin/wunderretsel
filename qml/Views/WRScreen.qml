@@ -12,11 +12,6 @@ AppPage {
 
     anchors.fill: parent
 
-    FontLoader {
-        id: titleFont
-        source: "qrc:/assets/fonts/PlayfairDisplay-VariableFont_wght.ttf"
-    }
-
     Rectangle {
         anchors.fill: parent
 
@@ -115,9 +110,6 @@ AppPage {
 
                 text: root.screenTitle
                 font.pixelSize: 42
-                // Variable fonts can trigger Qt Quick glyph-cache crashes
-                // on some Android GPU/driver stacks; use system font there.
-                font.family: Qt.platform.os === "android" ? "" : titleFont.name
                 font.weight: Font.Bold
                 color: appStateManager ? appStateManager.themeTextPrimary : "#34101f"
                 renderType: Qt.platform.os === "android"

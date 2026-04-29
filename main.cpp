@@ -16,6 +16,10 @@ int main(int argc, char *argv[])
     // forcing non-distance-field text rendering bypasses that code path.
 #if defined(Q_OS_ANDROID)
     qputenv("QML_DISABLE_DISTANCEFIELD", "1");
+    // Strong fallback for driver/scenegraph text crashes on Android:
+    // run Qt Quick via software backend.
+    qputenv("QT_QUICK_BACKEND", "software");
+    qInfo() << "Android renderer override: QT_QUICK_BACKEND=software";
 #endif
 
     // Felgo apps render purely with Qt Quick — pulling QApplication in
