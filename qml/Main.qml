@@ -27,6 +27,23 @@ App {
         }
     }
 
+    Rectangle {
+        anchors.fill: parent
+        visible: screenLoader.status === Loader.Error
+        color: "#fff7fa"
+        z: 999
+
+        Text {
+            anchors.centerIn: parent
+            width: parent.width - 48
+            horizontalAlignment: Text.AlignHCenter
+            wrapMode: Text.WordWrap
+            color: "#401425"
+            font.pixelSize: 16
+            text: qsTr("Failed to load screen component. Check Android logcat for 'QML warning:' lines.")
+        }
+    }
+
     Component {
         id: homeComponent
 

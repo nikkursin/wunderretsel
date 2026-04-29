@@ -1,5 +1,4 @@
 import QtQuick
-import QtQuick.Effects
 import Felgo
 
 import "../Components"
@@ -76,15 +75,6 @@ WRScreen {
                     anchors.fill: parent
                     source: root.playCardImageSource
                     fillMode: Image.PreserveAspectCrop
-                }
-
-                MultiEffect {
-                    anchors.fill: bgImage
-                    source: bgImage
-                    blurEnabled: true
-                    blur: 0.8
-                    saturation: 1.1
-                    brightness: 0.1
                 }
 
                 Rectangle {
