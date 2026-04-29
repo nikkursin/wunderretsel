@@ -277,7 +277,7 @@ WRScreen {
     ColumnLayout {
         id: mainLayout
         anchors.fill: parent
-        anchors.topMargin:    dp(4)
+        anchors.topMargin:    dp(28)
         anchors.bottomMargin: dp(8)
         anchors.leftMargin:   dp(12)
         anchors.rightMargin:  dp(12)
@@ -304,9 +304,9 @@ WRScreen {
                 // so the whole crossword takes ~22 % of page height.
                 readonly property real cellSz:
                     Math.max(dp(10),
-                             Math.min(dp(26),
+                             Math.min(dp(34),
                                       Math.min((gridWrapper.width - gap * (columns - 1)) / columns,
-                                               root.height * 0.026)))
+                                               root.height * 0.034)))
                 readonly property real totalH: cellSz * rows + gap * (rows - 1)
 
                 columnSpacing: gap

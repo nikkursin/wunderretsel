@@ -121,7 +121,7 @@ AppPage {
                 height: 46
 
                 text: root.screenTitle
-                font.pixelSize: 42
+                font.pixelSize: 36
                 font.family: titleFont.name
                 font.weight: Font.Bold
                 color: appStateManager ? appStateManager.themeTextPrimary : "#34101f"
