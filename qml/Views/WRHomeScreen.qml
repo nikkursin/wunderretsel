@@ -9,8 +9,15 @@ WRScreen {
 
     showBackButton: false
 
-    property int unlockedImages: 8
-    property int totalImages: 24
+    // Counter values are pulled live from AppStateManager so the home
+    // card always agrees with the gallery screen and the underlying
+    // unlocked-image set persisted in storage. The defensive `?:` on
+    // appStateManager keeps the QML editor preview happy when the
+    // context property isn't injected.
+    readonly property int unlockedImages:
+        appStateManager ? appStateManager.unlockedImagesCount : 0
+    readonly property int totalImages:
+        appStateManager ? appStateManager.totalImagesCount : 0
 
     signal playClicked()
     signal galleryClicked()

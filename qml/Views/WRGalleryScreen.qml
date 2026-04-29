@@ -2,90 +2,188 @@ import QtQuick
 import QtQuick.Layouts
 import "../Components"
 
+// Gallery view. Strict MVVM: this file owns *only* presentation. The
+// list of images, their unlocked state, and both counters all come
+// from `appStateManager` (see AppStateManager::galleryImages).
 WRScreen {
     id: root
 
-    signal backClicked()
-    signal imageClicked(int index)
+    // Emitted when the user taps an unlocked tile. Back navigation is handled
+    // globally by WRBackArrow → appStateManager.goBack(); do not duplicate
+    // here (there is no WRScreen.backClicked signal, so `onBackClicked`
+    // bindings are invalid on this root).
+    signal imageClicked(int imageId, string imageSource)
 
     showBackButton: true
-    onBackClicked: root.backClicked()
 
     ColumnLayout {
         anchors.fill: parent
         anchors.margins: 16
-        spacing: 16
+        spacing: 14
 
-        WRProgressCard {
-            Layout.fillWidth: true
-        }
-
+        // ── Gallery card ─────────────────────────────────────────────
+        // Header row (title + counter badge) followed by a flickable
+        // grid of tiles. The whole card stretches to fill the page.
         WRCard {
-            id: galleryGridCard
-            Layout.fillWidth: true
-            Layout.fillHeight: true  // now actually works
+            id: galleryCard
+            Layout.fillWidth:  true
+            Layout.fillHeight: true
             interactive: false
 
-            property int itemCount: 24
-            property int columnsCount: 3
-            property int gap: 12
-            property int innerPadding: 16
-            property real tileSize: (width - innerPadding * 2 - gap * (columnsCount - 1)) / columnsCount
+            // Grid tunables — kept on the card so they're easy to find.
+            readonly property int columnsCount: 3
+            readonly property int gap: 12
+            readonly property int innerPadding: 18
+            readonly property real availableWidth:
+                width - innerPadding * 2
+            readonly property real tileSize:
+                Math.max(48,
+                         (availableWidth - gap * (columnsCount - 1))
+                         / columnsCount)
 
-            Flickable {
-                id: flick
+            ColumnLayout {
                 anchors.fill: parent
-                anchors.margins: galleryGridCard.innerPadding
-                contentWidth: width
-                contentHeight: grid.implicitHeight
-                clip: true
-                boundsBehavior: Flickable.StopAtBounds
+                anchors.margins: galleryCard.innerPadding
+                spacing: 16
 
-                Grid {
-                    id: grid
-                    width: flick.width
-                    columns: galleryGridCard.columnsCount
-                    spacing: galleryGridCard.gap
+                // ── Header: title (left) + counter pill (right) ──
+                RowLayout {
+                    Layout.fillWidth: true
+                    spacing: 12
 
-                    Repeater {
-                        model: galleryGridCard.itemCount
-                        WRGalleryTile {
-                            width: galleryGridCard.tileSize
-                            height: galleryGridCard.tileSize
-                            imageSource: "qrc:/assets/images/female/sample.jpg"
-                            unlocked: index % 2 === 0
-                            blurred: !unlocked
-                            onClicked: root.imageClicked(index)
+                    Column {
+                        Layout.fillWidth: true
+                        Layout.alignment: Qt.AlignVCenter
+                        spacing: 4
+
+                        Text {
+                            text: qsTr("Gallery")
+                            font.pixelSize: 24
+                            font.weight: Font.Bold
+                            color: "#35111f"
                         }
+                        Text {
+                            text: qsTr("Discovered images")
+                            font.pixelSize: 13
+                            font.weight: Font.DemiBold
+                            color: Qt.rgba(0.42, 0.23, 0.31, 0.72)
+                        }
+                    }
+
+                    // Counter pill — pinned to the right side of the
+                    // card header. Same gradient and proportions as the
+                    // home-screen badge so the two screens read as one
+                    // visual system.
+                    Rectangle {
+                        id: counterBadge
+                        Layout.alignment: Qt.AlignVCenter | Qt.AlignRight
+                        width:  78
+                        height: 78
+                        radius: 24
+
+                        gradient: Gradient {
+                            GradientStop { position: 0.0; color: "#fff4f9" }
+                            GradientStop { position: 1.0; color: "#f58ab6" }
+                        }
+                        border.width: 1
+                        border.color: Qt.rgba(0.45, 0.15, 0.3, 0.10)
+
+                        Text {
+                            anchors.centerIn: parent
+                            text: (appStateManager
+                                       ? appStateManager.unlockedImagesCount
+                                       : 0)
+                                  + "/"
+                                  + (appStateManager
+                                       ? appStateManager.totalImagesCount
+                                       : 0)
+                            font.pixelSize: 19
+                            font.weight: Font.Black
+                            color: "#401425"
+                        }
+                    }
+                }
+
+                // ── Image grid ───────────────────────────────────
+                Item {
+                    Layout.fillWidth:  true
+                    Layout.fillHeight: true
+
+                    Flickable {
+                        id: flick
+                        anchors.fill: parent
+                        contentWidth: width
+                        contentHeight: imageGrid.height
+                        clip: true
+                        boundsBehavior: Flickable.StopAtBounds
+
+                        Grid {
+                            id: imageGrid
+                            width: flick.width
+                            columns: galleryCard.columnsCount
+                            spacing: galleryCard.gap
+
+                            Repeater {
+                                // Pure-data model from C++: a list of
+                                // { id, source, unlocked } maps. The
+                                // Repeater rebuilds whenever AppStateManager
+                                // emits galleryImagesChanged, which it
+                                // does on init, preference change and
+                                // every successful puzzle solve.
+                                model: appStateManager
+                                       ? appStateManager.galleryImages
+                                       : []
+
+                                WRGalleryTile {
+                                    width:  galleryCard.tileSize
+                                    height: galleryCard.tileSize
+                                    imageSource: modelData.source
+                                    unlocked:    modelData.unlocked
+                                    onClicked: root.imageClicked(modelData.id,
+                                                                 modelData.source)
+                                }
+                            }
+                        }
+                    }
+
+                    // Empty-state hint — only shown when the storage
+                    // layer returned no images at all (e.g. malformed
+                    // images.json). Keeps the screen from looking
+                    // broken if assets are missing.
+                    Text {
+                        anchors.centerIn: parent
+                        visible: appStateManager
+                                 && appStateManager.totalImagesCount === 0
+                        text: qsTr("No images available yet.")
+                        font.pixelSize: 14
+                        color: Qt.rgba(0.23, 0.09, 0.15, 0.55)
                     }
                 }
             }
         }
 
+        // ── Footer hint ──────────────────────────────────────────────
         Row {
-             spacing: 8
+            Layout.alignment: Qt.AlignHCenter
+            spacing: 8
 
-             Rectangle {
-                 width: 14
-                 height: 14
-                 radius: 7
-                 color: Qt.rgba(0.86, 0.24, 0.52, 0.16)
+            Rectangle {
+                width: 14; height: 14; radius: 7
+                color: Qt.rgba(0.86, 0.24, 0.52, 0.16)
 
-                 Rectangle {
-                     anchors.centerIn: parent
-                     width: 6
-                     height: 6
-                     radius: 3
-                     color: "#d94b86"
-                 }
-             }
+                Rectangle {
+                    anchors.centerIn: parent
+                    width: 6; height: 6; radius: 3
+                    color: "#d94b86"
+                }
+            }
 
-             Text {
-                 text: "Progress grows after completed puzzles"
-                 font.pixelSize: 13
-                 font.weight: Font.DemiBold
-                 color: Qt.rgba(0.23, 0.09, 0.15, 0.62)
-             }
+            Text {
+                text: qsTr("Solve puzzles to unlock more images")
+                font.pixelSize: 13
+                font.weight: Font.DemiBold
+                color: Qt.rgba(0.23, 0.09, 0.15, 0.62)
+            }
         }
     }
 }

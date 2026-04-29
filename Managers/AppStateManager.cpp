@@ -1,10 +1,13 @@
 #include "AppStateManager.h"
+
 #include <QDebug>
+#include <QSet>
 
 AppStateManager::AppStateManager(QSharedPointer<StorageManager> storageManager, QObject *parent) : QObject{parent}, m_storageManager(storageManager), m_puzzleManager(storageManager){}
 
 bool AppStateManager::init() {
     m_userData = m_storageManager->loadUserData();
+    refreshGalleryImages();
 
     if(m_userData.isOnboardingCompleted) navigateTo(Home);
         else navigateTo(Onboarding);
@@ -51,6 +54,9 @@ void AppStateManager::setCharacterType(const QString& type)
         return;
 
     m_userData.characterType = newType;
+    // Character preference changed → the gallery's filtered image set
+    // changes too, so re-load the cache before emitting.
+    refreshGalleryImages();
     emit characterTypeChanged();
 }
 
@@ -126,6 +132,59 @@ QVariantMap AppStateManager::currentPuzzle() const
     return puzzle;
 }
 
+QVariantList AppStateManager::galleryImages() const
+{
+    // Project the cached ImageEntry list into a QML-friendly shape:
+    //   [ { id: int, source: "qrc:/...", unlocked: bool }, ... ]
+    // We materialise the unlock set once per call (m_userData.unlockedImagesIds
+    // is a QVector, so naive contains() would be O(n) per check) – with
+    // 30 images and ≤30 unlocked entries this is trivially fast.
+    const QSet<int> unlocked(m_userData.unlockedImagesIds.begin(),
+                              m_userData.unlockedImagesIds.end());
+
+    QVariantList list;
+    list.reserve(m_galleryImages.size());
+
+    for (const ImageEntry& entry : m_galleryImages) {
+        QVariantMap item;
+        item["id"]       = entry.id;
+        item["source"]   = entry.source;
+        item["unlocked"] = unlocked.contains(entry.id);
+        list.append(item);
+    }
+
+    return list;
+}
+
+int AppStateManager::unlockedImagesCount() const
+{
+    // Counter is anchored to the *currently visible* gallery feed, so
+    // "x / y" stays consistent if the player switches preferences in
+    // settings. (E.g. unlocking 5 mixed images and then narrowing the
+    // preference to "female" should not show "5 / 10" if none of those
+    // unlocks belong to the female set.)
+    const QSet<int> unlocked(m_userData.unlockedImagesIds.begin(),
+                              m_userData.unlockedImagesIds.end());
+    int count = 0;
+    for (const ImageEntry& entry : m_galleryImages) {
+        if (unlocked.contains(entry.id))
+            ++count;
+    }
+    return count;
+}
+
+int AppStateManager::totalImagesCount() const
+{
+    return m_galleryImages.size();
+}
+
+void AppStateManager::refreshGalleryImages()
+{
+    m_galleryImages = m_storageManager->loadImagesByPreference(
+        m_userData.characterType);
+    emit galleryImagesChanged();
+}
+
 void AppStateManager::generateNewPuzzle()
 {
     m_userData = m_storageManager->loadUserData();
@@ -164,12 +223,21 @@ void AppStateManager::notifyPuzzleSolved()
     hasOngoingPuzzle = false;
     m_userData.solvedPuzzleCount += 1;
 
+    bool unlockedNew = false;
     if (m_currentPuzzle.imageId >= 0
         && !m_userData.unlockedImagesIds.contains(m_currentPuzzle.imageId)) {
         m_userData.unlockedImagesIds.append(m_currentPuzzle.imageId);
+        unlockedNew = true;
     }
 
     m_storageManager->saveUser(m_userData);
+
+    // The image list itself didn't change (same entries, same order),
+    // only the per-image unlock flag flipped. Re-emitting the gallery
+    // signal triggers QML bindings to recompute `unlocked` /
+    // `unlockedImagesCount` without touching the cache.
+    if (unlockedNew)
+        emit galleryImagesChanged();
 }
 
 void AppStateManager::goHome()
@@ -223,6 +291,11 @@ void AppStateManager::completeOnboarding(const QString &languageLevel,
     m_userData.isOnboardingCompleted = true;
 
     m_storageManager->saveUser(m_userData);
+
+    // Character preference is fixed at onboarding → load the gallery
+    // feed so the Home counter and Gallery screen are correct on the
+    // very first frame of the Home screen.
+    refreshGalleryImages();
 
     navigateTo(Home);
 }
