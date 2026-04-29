@@ -123,6 +123,12 @@ WRScreen {
         }
     }
 
+    function clearFilledWords() {
+        // Clear every accepted word so the crossword returns to a fresh state.
+        solvedWords = []
+        clearPath()
+    }
+
     function shuffleLetters() {
         var copy = letters.slice()
         for (var i = copy.length - 1; i > 0; i--) {
@@ -751,7 +757,7 @@ WRScreen {
                 MouseArea {
                     id: clearArea
                     anchors.fill: parent
-                    onClicked: root.clearPath()
+                    onClicked: root.clearFilledWords()
                 }
             }
 
