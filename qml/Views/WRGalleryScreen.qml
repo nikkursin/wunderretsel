@@ -13,6 +13,8 @@ WRScreen {
     // here (there is no WRScreen.backClicked signal, so `onBackClicked`
     // bindings are invalid on this root).
     signal imageClicked(int imageId, string imageSource)
+    property bool imageViewerOpen: false
+    property string selectedImageSource: ""
 
     showBackButton: true
 
@@ -139,8 +141,11 @@ WRScreen {
                                     height: galleryCard.tileSize
                                     imageSource: modelData.source
                                     unlocked:    modelData.unlocked
-                                    onClicked: root.imageClicked(modelData.id,
-                                                                 modelData.source)
+                                    onClicked: {
+                                        root.selectedImageSource = modelData.source
+                                        root.imageViewerOpen = true
+                                        root.imageClicked(modelData.id, modelData.source)
+                                    }
                                 }
                             }
                         }
@@ -183,6 +188,74 @@ WRScreen {
                 font.pixelSize: 13
                 font.weight: Font.DemiBold
                 color: appStateManager ? appStateManager.themeTextSecondary : Qt.rgba(0.23, 0.09, 0.15, 0.62)
+            }
+        }
+    }
+
+    Rectangle {
+        anchors.fill: parent
+        visible: root.imageViewerOpen
+        z: 200
+        color: Qt.rgba(0, 0, 0, 0.74)
+
+        MouseArea {
+            anchors.fill: parent
+            onClicked: root.imageViewerOpen = false
+        }
+
+        Rectangle {
+            id: imageFrame
+            anchors.centerIn: parent
+            width: parent.width - 36
+            height: parent.height - 120
+            radius: 24
+            color: Qt.rgba(1, 1, 1, 0.96)
+            border.width: 1
+            border.color: appStateManager ? appStateManager.themeControlBorder : Qt.rgba(0.4, 0.2, 0.3, 0.24)
+            clip: true
+            scale: root.imageViewerOpen ? 1.0 : 0.94
+            Behavior on scale {
+                NumberAnimation { duration: 140; easing.type: Easing.OutCubic }
+            }
+
+            MouseArea {
+                anchors.fill: parent
+                onClicked: {}
+            }
+
+            Image {
+                anchors.fill: parent
+                anchors.margins: 12
+                source: root.selectedImageSource
+                fillMode: Image.PreserveAspectCrop
+                smooth: true
+                asynchronous: true
+                cache: true
+            }
+        }
+
+        Rectangle {
+            id: closeButton
+            anchors.top: imageFrame.top
+            anchors.right: imageFrame.right
+            anchors.topMargin: 10
+            anchors.rightMargin: 10
+            width: 36
+            height: 36
+            radius: 18
+            color: Qt.rgba(0, 0, 0, 0.44)
+
+            Text {
+                anchors.centerIn: parent
+                text: "X"
+                font.pixelSize: 16
+                font.bold: true
+                color: "white"
+            }
+
+            MouseArea {
+                anchors.fill: parent
+                onClicked: root.imageViewerOpen = false
             }
         }
     }
