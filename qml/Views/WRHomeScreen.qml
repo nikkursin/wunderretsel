@@ -18,10 +18,32 @@ WRScreen {
         appStateManager ? appStateManager.unlockedImagesCount : 0
     readonly property int totalImages:
         appStateManager ? appStateManager.totalImagesCount : 0
+    property string playCardImageSource: "qrc:/assets/images/female/sample.jpg"
 
     signal playClicked()
     signal galleryClicked()
     signal settingsClicked()
+
+    function refreshPlayCardImage() {
+        if (!appStateManager || !appStateManager.galleryImages
+                || appStateManager.galleryImages.length === 0) {
+            playCardImageSource = "qrc:/assets/images/female/sample.jpg"
+            return
+        }
+
+        var images = appStateManager.galleryImages
+        var randomIndex = Math.floor(Math.random() * images.length)
+        playCardImageSource = images[randomIndex].source
+    }
+
+    Component.onCompleted: refreshPlayCardImage()
+
+    Connections {
+        target: appStateManager
+        function onGalleryImagesChanged() {
+            root.refreshPlayCardImage()
+        }
+    }
 
     Column {
         anchors {
@@ -52,7 +74,7 @@ WRScreen {
                 Image {
                     id: bgImage
                     anchors.fill: parent
-                    source: "qrc:/assets/images/female/sample.jpg"
+                    source: root.playCardImageSource
                     fillMode: Image.PreserveAspectCrop
                 }
 
