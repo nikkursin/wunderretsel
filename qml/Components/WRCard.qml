@@ -1,5 +1,4 @@
 import QtQuick
-import QtQuick.Effects
 
 Item {
     id: card
@@ -36,21 +35,9 @@ Item {
         NumberAnimation { duration: 160; easing.type: Easing.OutCubic }
     }
 
-    layer.enabled: true
-    layer.effect: MultiEffect {
-        shadowEnabled: true
-        shadowColor: Qt.rgba(0.38, 0.06, 0.2, 1)
-        shadowOpacity: mouseArea.containsMouse ? 0.18 : 0.12
-        shadowBlur: 0.8
-        shadowVerticalOffset: mouseArea.containsMouse ? 8 : 5
-
-        Behavior on shadowOpacity {
-            NumberAnimation { duration: 160; easing.type: Easing.OutCubic }
-        }
-        Behavior on shadowVerticalOffset {
-            NumberAnimation { duration: 160; easing.type: Easing.OutCubic }
-        }
-    }
+    // Keep cards GPU-light on Android/cloud builds: MultiEffect shadows
+    // can trigger startup failures on some devices/drivers.
+    layer.enabled: false
 
     MouseArea {
         id: mouseArea

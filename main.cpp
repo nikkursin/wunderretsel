@@ -11,6 +11,13 @@
 
 int main(int argc, char *argv[])
 {
+    // Android workaround: avoid Qt Quick distance-field glyph cache path.
+    // Your crash stack is in QSGDistanceFieldGlyphCache/QQuickText, so
+    // forcing non-distance-field text rendering bypasses that code path.
+#if defined(Q_OS_ANDROID)
+    qputenv("QML_DISABLE_DISTANCEFIELD", "1");
+#endif
+
     // Felgo apps render purely with Qt Quick — pulling QApplication in
     // from QtWidgets adds platform integration code we never use and is
     // a known source of Android startup issues. QGuiApplication is the

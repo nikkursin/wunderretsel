@@ -1,6 +1,5 @@
 import Felgo
 import QtQuick
-import QtQuick.Effects
 import "../Components"
 
 AppPage {
@@ -43,13 +42,6 @@ AppPage {
                 opacity: 0.58
             }
 
-            MultiEffect {
-                anchors.fill: topLeftGlow
-                source: topLeftGlow
-                blurEnabled: true
-                blur: 0.85
-            }
-
             Rectangle {
                 id: topRightGlow
                 width: parent.width * 0.9
@@ -59,13 +51,6 @@ AppPage {
                 y: -height * 0.18
                 color: appStateManager ? appStateManager.themeTintMid : "#F7D5E4"
                 opacity: 0.42
-            }
-
-            MultiEffect {
-                anchors.fill: topRightGlow
-                source: topRightGlow
-                blurEnabled: true
-                blur: 0.75
             }
 
             Rectangle {
@@ -79,12 +64,6 @@ AppPage {
                 opacity: 0.18
             }
 
-            MultiEffect {
-                anchors.fill: bottomGlow
-                source: bottomGlow
-                blurEnabled: true
-                blur: 0.9
-            }
         }
     }
 
@@ -136,9 +115,14 @@ AppPage {
 
                 text: root.screenTitle
                 font.pixelSize: 42
-                font.family: titleFont.name
+                // Variable fonts can trigger Qt Quick glyph-cache crashes
+                // on some Android GPU/driver stacks; use system font there.
+                font.family: Qt.platform.os === "android" ? "" : titleFont.name
                 font.weight: Font.Bold
                 color: appStateManager ? appStateManager.themeTextPrimary : "#34101f"
+                renderType: Qt.platform.os === "android"
+                            ? Text.NativeRendering
+                            : Text.QtRendering
 
                 horizontalAlignment: Text.AlignHCenter
                 verticalAlignment: Text.AlignVCenter

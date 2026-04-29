@@ -1,5 +1,4 @@
 import QtQuick
-import QtQuick.Effects
 import Felgo
 
 Item {
@@ -21,23 +20,6 @@ Item {
 
         Behavior on color {
             ColorAnimation { duration: 140; easing.type: Easing.OutCubic }
-        }
-    }
-
-    MultiEffect {
-        anchors.fill: bg
-        source: bg
-        shadowEnabled: true
-        shadowColor: "#402A0F1F"
-        shadowBlur: 0.6
-        shadowOpacity: pressed ? 0.3 : hovered ? 0.7 : 0.5
-        shadowVerticalOffset: pressed ? 2 : hovered ? 7 : 4
-
-        Behavior on shadowOpacity {
-            NumberAnimation { duration: 140; easing.type: Easing.OutCubic }
-        }
-        Behavior on shadowVerticalOffset {
-            NumberAnimation { duration: 140; easing.type: Easing.OutCubic }
         }
     }
 
