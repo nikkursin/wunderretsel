@@ -30,10 +30,13 @@ WRScreen {
     readonly property int gridRows:    (puzzleData && puzzleData.rows)    ? puzzleData.rows    : 7
     readonly property int gridColumns: (puzzleData && puzzleData.columns) ? puzzleData.columns : 7
 
-    // Letters live in their own property so shuffling doesn't mutate puzzleData.
-    property var letters: (puzzleData && puzzleData.letters)
-                          ? puzzleData.letters.slice()
-                          : []
+    // Letters live in their own property so shuffling doesn't mutate
+    // puzzleData. NOTE: we deliberately do NOT bind this to puzzleData —
+    // shuffleLetters() does `letters = copy`, which would permanently break
+    // a binding. Instead we re-seed `letters` on Component.onCompleted and
+    // every onPuzzleDataChanged. That way each new puzzle gets a fresh
+    // wheel with the correct, multiplicity-preserved letter set.
+    property var letters: []
 
     // ── Game state ───────────────────────────────────────────────────────────
     property var  solvedWords:     []
@@ -58,9 +61,20 @@ WRScreen {
         }
     }
     onPuzzleDataChanged: {
-        // New puzzle arrived → reset solved-state bookkeeping.
+        // New puzzle arrived → reset solved-state bookkeeping AND reseed the
+        // letter wheel from the new puzzle. Without this, a previous
+        // shuffleLetters() call would have broken any binding on `letters`
+        // and the wheel would keep showing letters from the prior puzzle.
         solvedWords = []
         _solvedReported = false
+        letters = (puzzleData && puzzleData.letters)
+                  ? puzzleData.letters.slice()
+                  : []
+    }
+    Component.onCompleted: {
+        letters = (puzzleData && puzzleData.letters)
+                  ? puzzleData.letters.slice()
+                  : []
     }
 
     // ── Helpers ──────────────────────────────────────────────────────────────
@@ -88,9 +102,25 @@ WRScreen {
     }
 
     function clearPath() {
+        // Fully reset the in-progress selection AND any feedback state.
+        // The Clear button calls this directly, so anything left lingering
+        // here (a stuck shake/flash, a stale canvas line, residual indices
+        // in currentPath) would make the button feel broken to the user.
         currentPath = []
         isDragging  = false
-        if (dragCanvas.available) dragCanvas.requestPaint()
+        shaking     = false
+        flashing    = false
+        shakeTimer.stop()
+        flashTimer.stop()
+        if (dragCanvas.available) {
+            dragCanvas.requestPaint()
+            // Belt-and-braces: the canvas can defer a paint when the
+            // FBO render target is busy, so schedule a second pass
+            // once the current event finishes.
+            Qt.callLater(function() {
+                if (dragCanvas.available) dragCanvas.requestPaint()
+            })
+        }
     }
 
     function shuffleLetters() {
@@ -153,12 +183,19 @@ WRScreen {
         Image {
             id: bgImage
             anchors.fill: parent
+            // Operator precedence pitfall: `A + B ? X : Y` parses as
+            // `(A + B) ? X : Y`, not as a string-prefix on the ternary
+            // result. Build the source explicitly via a parenthesised
+            // ternary, and use the `qrc:/` URL scheme which QML's Image
+            // requires (a bare `:/path` is treated as a relative URL).
             source: (puzzleData && puzzleData.imageSource)
                     ? puzzleData.imageSource
-                    : ":/assets/images/female/sample.jpg"
+                    : "qrc:/assets/images/female/sample.jpg"
             fillMode: Image.PreserveAspectCrop
             asynchronous: true
             visible: status === Image.Ready
+            onStatusChanged: if (status === Image.Error)
+                                 console.warn("bgImage failed:", source)
         }
 
         // Fallback rose gradient when the image isn't available
@@ -174,10 +211,10 @@ WRScreen {
         }
 
         // Base rose tint — always present so the crossword/wheel are readable
-        Rectangle {
-            anchors.fill: parent
-            color: Qt.rgba(1, 0.94, 0.96, 0.50)
-        }
+        // Rectangle {
+        //     anchors.fill: parent
+        //     color: Qt.rgba(1, 0.94, 0.96, 0.50)
+        // }
 
         // Reveal segments — one per word. Each unsolved word adds extra
         // rose haze over its quadrant; solving the word fades it clear so
@@ -350,14 +387,35 @@ WRScreen {
         }
 
         // ── Word-badge row ────────────────────────────────────────────────
-        Row {
+        // Renders one pill per word. When the total letter count of all
+        // words exceeds 20, the badges wrap onto two rows (≈ half per row)
+        // so they don't get squashed off-screen for long-word puzzles.
+        Grid {
+            id: wordBadges
             Layout.alignment: Qt.AlignHCenter
-            Layout.preferredHeight: dp(20)
             visible: !root.puzzleCompleted
-            spacing: dp(5)
+
+            readonly property int wordCount:
+                (puzzleData && puzzleData.words) ? puzzleData.words.length : 0
+
+            readonly property int totalLetters: {
+                if (!puzzleData || !puzzleData.words) return 0
+                var t = 0
+                for (var i = 0; i < puzzleData.words.length; i++)
+                    t += puzzleData.words[i].length
+                return t
+            }
+
+            columns: totalLetters > 20
+                     ? Math.ceil(wordCount / 2)
+                     : Math.max(1, wordCount)
+            rowSpacing:    dp(4)
+            columnSpacing: dp(5)
+            horizontalItemAlignment: Grid.AlignHCenter
+            verticalItemAlignment:   Grid.AlignVCenter
 
             Repeater {
-                model: puzzleData && puzzleData.words ? puzzleData.words.length : 0
+                model: wordBadges.wordCount
 
                 Rectangle {
                     readonly property bool done: root.isWordSolved(index)
@@ -737,56 +795,28 @@ WRScreen {
                 }
             }
 
-            // Submit (primary, gradient, with shadow)
-            Item {
-                Layout.fillWidth: true
-                Layout.preferredHeight: dp(38)
-                opacity: root.currentPath.length > 0 ? 1.0 : 0.5
-                Behavior on opacity { NumberAnimation { duration: 120 } }
+            // No explicit Submit button: releasing the drag on the letter
+            // wheel auto-submits the current word (see wheel MouseArea
+            // onReleased), so an extra Submit button is redundant.
+        }
 
-                Rectangle {
-                    id: submitBg
-                    anchors.fill: parent
-                    radius: dp(14)
-                    gradient: Gradient {
-                        orientation: Gradient.Vertical
-                        GradientStop { position: 0; color: "#ef4f91" }
-                        GradientStop { position: 1; color: "#d93279" }
-                    }
-                    scale: submitArea.pressed ? 0.97 : 1.0
-                    Behavior on scale { NumberAnimation { duration: 110 } }
-
-                    Text {
-                        anchors.centerIn: parent
-                        text: "Submit"
-                        font.pixelSize: dp(15)
-                        font.weight: Font.Black
-                        color: "white"
-                    }
-
-                    MouseArea {
-                        id: submitArea
-                        anchors.fill: parent
-                        enabled: root.currentPath.length > 0
-                        onClicked: root.submitWord()
-                    }
-                }
-                MultiEffect {
-                    anchors.fill: submitBg
-                    source: submitBg
-                    shadowEnabled: true
-                    shadowColor: "#90c4307a"
-                    shadowOpacity: 0.55
-                    shadowBlur: 0.8
-                    shadowVerticalOffset: 5
-                }
-            }
+        // ── Completion-state spacer ───────────────────────────────────────
+        // After the puzzle is solved, every other layout cell above
+        // (gridWrapper, badges, previewArea, wheelContainer, controls)
+        // is hidden, so they release their vertical space. Without this
+        // flex spacer the WRCard would jump to the top of the page; the
+        // spacer absorbs the leftover height and pins the card down.
+        Item {
+            Layout.fillWidth:  true
+            Layout.fillHeight: true
+            visible: root.puzzleCompleted
         }
 
         // ── Completion card ───────────────────────────────────────────────
         WRCard {
             Layout.fillWidth: true
             Layout.preferredHeight: dp(118)
+            Layout.alignment: Qt.AlignHCenter | Qt.AlignBottom
             visible: root.puzzleCompleted
             interactive: false
 

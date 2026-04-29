@@ -31,6 +31,11 @@ constexpr int kMaxWordCount = 6;
 constexpr int kMinWordLength = 2;
 constexpr int kMaxWordLength = 8;
 
+// Hard cap on the letter wheel. Each repeated letter in any single placed
+// word needs its own wheel slot (otherwise the player can't trace e.g.
+// "SEITE" – two E's), so we account for *multiplicity*, not unique letters.
+constexpr int kMaxWheelLetters = 8;
+
 // How many independent generation attempts we make and how long the whole
 // generation is allowed to take (hard wall-clock cap, in milliseconds).
 constexpr int kMaxAttempts = 20;
@@ -259,6 +264,18 @@ AttemptResult tryGenerateOnce(const QVector<WordEntry>& shuffled,
     for (int r = 0; r < rows; ++r)
         g.cells[r].fill(QChar(), cols);
 
+    // Wheel budget: the wheel must contain enough copies of each letter for
+    // every placed word. Track the running max-per-letter count so we can
+    // reject any candidate that would push the wheel above kMaxWheelLetters.
+    QHash<QChar, int> wheelCounts;
+    int wheelTotal = 0;
+
+    auto countLetters = [](const QString& w) {
+        QHash<QChar, int> h;
+        for (const QChar& c : w) ++h[c];
+        return h;
+    };
+
     int placedCount = 0;
     for (const WordEntry& entry : shuffled) {
         if (placedCount >= targetWordCount) break;
@@ -268,6 +285,25 @@ AttemptResult tryGenerateOnce(const QVector<WordEntry>& shuffled,
             continue;
         if (word.length() > qMin(rows, cols))
             continue;
+
+        // Pre-flight wheel-budget check: reject any word whose own letters
+        // already exceed the wheel cap (e.g. an 8-letter word that would
+        // need >8 distinct buttons because of repeats). Cheap; saves us
+        // from running the placement scan for hopeless candidates.
+        const QHash<QChar, int> wordCounts = countLetters(word);
+        QHash<QChar, int> projectedWheel = wheelCounts;
+        int projectedTotal = wheelTotal;
+        for (auto it = wordCounts.constBegin(); it != wordCounts.constEnd(); ++it) {
+            const int have = projectedWheel.value(it.key(), 0);
+            if (it.value() > have) {
+                projectedTotal += (it.value() - have);
+                projectedWheel[it.key()] = it.value();
+            }
+        }
+        if (projectedTotal > kMaxWheelLetters) {
+            ++result.unplacedCount;
+            continue;
+        }
 
         Placement p;
         const bool firstWord = (placedCount == 0);
@@ -287,6 +323,9 @@ AttemptResult tryGenerateOnce(const QVector<WordEntry>& shuffled,
         result.placed.append(pw);
         result.totalScore += p.score;
         result.totalCrossings += p.crossings;
+
+        wheelCounts = projectedWheel;
+        wheelTotal = projectedTotal;
         ++placedCount;
     }
 
@@ -448,14 +487,28 @@ GeneratedPuzzle finalizePuzzle(const AttemptResult& attempt,
         }
     }
 
-    // Unique letters for the wheel (preserve appearance order).
-    QSet<QChar> seenLetter;
+    // Wheel letters with multiplicity: for every letter we keep the maximum
+    // number of times it appears in any single placed word. That guarantees
+    // the player can trace each word (e.g. "SEITE" needs two E buttons) and
+    // matches exactly what tryGenerateOnce budgeted against kMaxWheelLetters.
+    QHash<QChar, int> wheelCounts;
     for (const PlacedWord& pw : puzzle.words) {
-        for (const QChar& ch : pw.word) {
-            if (seenLetter.contains(ch)) continue;
-            seenLetter.insert(ch);
-            puzzle.letters.append(QString(ch));
+        QHash<QChar, int> per;
+        for (const QChar& ch : pw.word) ++per[ch];
+        for (auto it = per.constBegin(); it != per.constEnd(); ++it) {
+            wheelCounts[it.key()] = qMax(wheelCounts.value(it.key(), 0),
+                                          it.value());
         }
+    }
+
+    // Stable, sorted order so the wheel layout doesn't shuffle between
+    // re-renders of the same puzzle. (Players still get a Shuffle button.)
+    QList<QChar> orderedLetters = wheelCounts.keys();
+    std::sort(orderedLetters.begin(), orderedLetters.end());
+    for (const QChar& ch : orderedLetters) {
+        const int count = wheelCounts.value(ch);
+        for (int i = 0; i < count; ++i)
+            puzzle.letters.append(QString(ch));
     }
 
     return puzzle;

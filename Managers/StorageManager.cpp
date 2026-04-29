@@ -219,7 +219,28 @@ QVector<ImageEntry> StorageManager::loadImagesByPreference(CharacterType charact
 
         ImageEntry entry;
         entry.id = obj.value("id").toInt(-1);
-        entry.source = obj.value("source").toString();
+
+        // Normalise the source into a QML-loadable URL. The dictionary
+        // historically stored Qt resource paths in either the C++ form
+        // (":/assets/...") or as a bare relative path ("assets/..."); QML's
+        // Image::source is a URL and only understands the "qrc:/" scheme.
+        // Coerce all of those into a single canonical form here so the QML
+        // side never has to think about it.
+        QString rawSource = obj.value("source").toString().trimmed();
+        if (rawSource.startsWith(QStringLiteral("qrc:/"))) {
+            entry.source = rawSource;
+        } else if (rawSource.startsWith(QLatin1Char(':'))) {
+            entry.source = QStringLiteral("qrc") + rawSource;       // ":/x" -> "qrc:/x"
+        } else if (!rawSource.isEmpty()
+                   && !rawSource.contains(QStringLiteral("://"))) {
+            // bare path like "assets/images/.." -> "qrc:/assets/images/.."
+            if (!rawSource.startsWith(QLatin1Char('/')))
+                rawSource.prepend(QLatin1Char('/'));
+            entry.source = QStringLiteral("qrc") + rawSource;
+        } else {
+            entry.source = rawSource;                               // file://, http://, ...
+        }
+
         entry.characterType = UserData::characterTypeFromString(imageType);
 
         if (entry.id != -1 && !entry.source.isEmpty())
