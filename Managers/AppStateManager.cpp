@@ -352,6 +352,20 @@ void AppStateManager::generateNewPuzzle()
         m_userData.solvedPuzzleCount
         );
 
+    // Safety net: if generation unexpectedly returns an empty puzzle,
+    // retry once after clearing used-word history.
+    if (m_currentPuzzle.words.isEmpty()) {
+        qWarning() << "[AppStateManager] Empty puzzle generated; retrying with cleared usedWordIds.";
+        m_userData.usedWordsIds.clear();
+        m_currentPuzzle = m_puzzleManager.generatePuzzle(
+            /*usedWordIds=*/QSet<int>{},
+            unlockedImageIds,
+            m_userData.level,
+            m_userData.characterType,
+            m_userData.solvedPuzzleCount
+            );
+    }
+
     hasOngoingPuzzle = !m_currentPuzzle.words.isEmpty();
 
     for (const PlacedWord& word : m_currentPuzzle.words) {

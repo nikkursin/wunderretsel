@@ -403,6 +403,39 @@ QVector<WordEntry> buildCandidatePool(StorageManager& storage,
     return deduped;
 }
 
+QVector<WordEntry> buildCandidatePoolAllLevels(StorageManager& storage,
+                                               int maxWordLength)
+{
+    QVector<WordEntry> pool;
+    for (int lvlInt = static_cast<int>(LanguageLevel::A1);
+         lvlInt <= static_cast<int>(LanguageLevel::C2);
+         ++lvlInt) {
+        const auto lvl = static_cast<LanguageLevel>(lvlInt);
+        QVector<WordEntry> v = storage.loadWordsByLevel(lvl);
+        v.erase(std::remove_if(v.begin(), v.end(),
+                               [&](const WordEntry& w) {
+                                   const QString upper = canonicalWord(w.word);
+                                   const int len = upper.length();
+                                   return w.id < 0
+                                          || len < kMinWordLength
+                                          || len > maxWordLength;
+                               }),
+                v.end());
+        pool += v;
+    }
+
+    QSet<QString> seen;
+    QVector<WordEntry> deduped;
+    deduped.reserve(pool.size());
+    for (const WordEntry& w : pool) {
+        const QString upper = canonicalWord(w.word);
+        if (seen.contains(upper)) continue;
+        seen.insert(upper);
+        deduped.append(w);
+    }
+    return deduped;
+}
+
 // Select an unlocked image matching the player's preference. May return -1
 // in `outId` when no eligible images exist; that leaves `imageSource`
 // blank and the QML falls back to its sample image.
@@ -570,6 +603,7 @@ GeneratedPuzzle PuzzleManager::generatePuzzle(const QSet<int>& usedWordIds,
                                                   level,
                                                   usedWordIds,
                                                   dt.maxWordLength);
+    qInfo() << "[PuzzleManager] Candidate pool size (preferred levels):" << pool.size();
 
     // Fallback: if the player has used so many words that the pool can no
     // longer support a full puzzle, recycle the dictionary. We never want
@@ -579,8 +613,21 @@ GeneratedPuzzle PuzzleManager::generatePuzzle(const QSet<int>& usedWordIds,
                                                            level,
                                                            /*usedWordIds=*/{},
                                                            dt.maxWordLength);
+        qInfo() << "[PuzzleManager] Candidate pool size (recycled used words):"
+                << recycled.size();
         if (recycled.size() > pool.size())
             pool = std::move(recycled);
+    }
+
+    // Last-resort guard: if level-specific resource loading failed or produced
+    // too few entries, widen search across all levels so gameplay never stalls.
+    if (pool.size() < dt.wordCount) {
+        QVector<WordEntry> allLevels = buildCandidatePoolAllLevels(
+            *m_storageManager, dt.maxWordLength);
+        qWarning() << "[PuzzleManager] Low candidate pool. Falling back to all levels:"
+                   << allLevels.size();
+        if (allLevels.size() > pool.size())
+            pool = std::move(allLevels);
     }
 
     // Always sort longer-first inside an attempt: long words anchor better
@@ -647,6 +694,12 @@ GeneratedPuzzle PuzzleManager::generatePuzzle(const QSet<int>& usedWordIds,
 
     // Hand-off to GeneratedPuzzle.
     GeneratedPuzzle puzzle = finalizePuzzle(bestAttempt, kGridRows, kGridColumns);
+    if (puzzle.words.isEmpty()) {
+        qWarning() << "[PuzzleManager] Generated empty puzzle."
+                   << "poolSize=" << pool.size()
+                   << "attemptsRun=" << attemptsRun
+                   << "difficultyFactor=" << difficultyFactor;
+    }
 
     selectRewardImage(*m_storageManager,
                       characterType,

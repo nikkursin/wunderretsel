@@ -10,21 +10,38 @@ StorageManager::StorageManager() {
     QString dir = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation);
     QDir().mkpath(dir);
     m_userFilePath = dir + "/user.json";
+
+    // Ensure user.json exists on every app launch so subsequent reads/writes
+    // always operate on a real file.
+    if (!QFile::exists(m_userFilePath)) {
+        if (!saveUser(UserData{})) {
+            qWarning() << "Failed to create default user.json at"
+                       << m_userFilePath;
+        } else {
+            qInfo() << "Created default user.json at"
+                    << m_userFilePath;
+        }
+    }
 }
 
 UserData StorageManager::loadUserData()
 {
     UserData data;
 
-    qDebug() << m_userFilePath;
+    qInfo() << "Loading user data from" << m_userFilePath;
 
     QFile file(m_userFilePath);
 
     if (!file.exists()) {
+        qWarning() << "user.json does not exist:"
+                   << m_userFilePath;
         return data;
     }
 
     if (!file.open(QIODevice::ReadOnly)) {
+        qWarning() << "Failed to open user.json for reading:"
+                   << m_userFilePath
+                   << "error:" << file.errorString();
         return data;
     }
 
@@ -36,6 +53,9 @@ UserData StorageManager::loadUserData()
         QJsonDocument::fromJson(jsonData, &parseError);
 
     if (parseError.error != QJsonParseError::NoError || !doc.isObject()) {
+        qWarning() << "Invalid user.json:"
+                   << m_userFilePath
+                   << "parseError:" << parseError.errorString();
         return data;
     }
 
@@ -128,18 +148,23 @@ bool StorageManager::saveUser(const UserData& userData)
     QFile file(m_userFilePath);
 
     if (!file.open(QIODevice::WriteOnly | QIODevice::Truncate)) {
-        qDebug() << "Failed to open file for writing:" << m_userFilePath;
+        qWarning() << "Failed to open user.json for writing:"
+                   << m_userFilePath
+                   << "error:" << file.errorString();
         return false;
     }
 
     if (file.write(jsonData) == -1) {
-        qDebug() << "Failed to write JSON to file";
+        qWarning() << "Failed to write user.json:"
+                   << m_userFilePath
+                   << "error:" << file.errorString();
         file.close();
         return false;
     }
 
     file.close();
 
+    qInfo() << "Saved user.json to" << m_userFilePath;
     return true;
 }
 
@@ -148,19 +173,25 @@ QVector<WordEntry> StorageManager::loadWordsByLevel(LanguageLevel level)
     QVector<WordEntry> result;
 
     const QString levelKey = UserData::languageLevelToString(level);
+    const QString wordsPath = QStringLiteral(":/assets/data/words.json");
 
-    QFile file(":/assets/data/words.json");
+    QFile file(wordsPath);
 
     if (!file.open(QIODevice::ReadOnly)) {
-        qWarning() << "Failed to open words.json";
+        qWarning() << "Failed to open words.json:"
+                   << wordsPath
+                   << "error:" << file.errorString();
         return result;
     }
 
-    const QJsonDocument doc = QJsonDocument::fromJson(file.readAll());
+    QJsonParseError parseError;
+    const QJsonDocument doc = QJsonDocument::fromJson(file.readAll(), &parseError);
     file.close();
 
     if (!doc.isObject()) {
-        qWarning() << "words.json root must be object";
+        qWarning() << "Invalid words.json root, expected object:"
+                   << wordsPath
+                   << "parseError:" << parseError.errorString();
         return result;
     }
 
@@ -188,18 +219,24 @@ QVector<ImageEntry> StorageManager::loadImagesByPreference(CharacterType charact
 {
     QVector<ImageEntry> result;
 
-    QFile file(":/assets/data/images.json");
+    const QString imagesPath = QStringLiteral(":/assets/data/images.json");
+    QFile file(imagesPath);
 
     if (!file.open(QIODevice::ReadOnly)) {
-        qWarning() << "Failed to open images.json";
+        qWarning() << "Failed to open images.json:"
+                   << imagesPath
+                   << "error:" << file.errorString();
         return result;
     }
 
-    const QJsonDocument doc = QJsonDocument::fromJson(file.readAll());
+    QJsonParseError parseError;
+    const QJsonDocument doc = QJsonDocument::fromJson(file.readAll(), &parseError);
     file.close();
 
     if (!doc.isArray()) {
-        qWarning() << "images.json root must be array";
+        qWarning() << "Invalid images.json root, expected array:"
+                   << imagesPath
+                   << "parseError:" << parseError.errorString();
         return result;
     }
 
