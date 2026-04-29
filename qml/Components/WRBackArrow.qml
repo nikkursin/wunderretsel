@@ -61,6 +61,12 @@ Item {
         anchors.fill: parent
         hoverEnabled: true
         cursorShape: Qt.PointingHandCursor
-        onClicked: appStateManager.goBack()
+        // Emit the public signal instead of reaching into a global
+        // context property here. Keeping the component navigation-
+        // agnostic means it still loads cleanly inside the Felgo Live
+        // App (where `appStateManager` does not exist) and lets the
+        // parent screen wire it up to whatever back-navigation the app
+        // is using.
+        onClicked: root.clicked()
     }
 }

@@ -112,7 +112,21 @@ AppPage {
                     anchors.fill: parent
                     visible: root.showBackButton
 
-                    onClicked: navigationStack.pop()
+                    // Back navigation is owned by AppStateManager (see
+                    // AppStateManager::goBack). There is no Felgo
+                    // NavigationStack in Main.qml — referencing
+                    // `navigationStack` here used to throw
+                    // ReferenceError on screen creation, which on
+                    // Android (Qt 6.8 / RHI) is enough to leave the
+                    // window on the white pre-render frame. Guard the
+                    // call so the component still loads when
+                    // appStateManager is missing (e.g. Live App).
+                    onClicked: {
+                        if (typeof appStateManager !== "undefined"
+                                && appStateManager
+                                && appStateManager.goBack)
+                            appStateManager.goBack()
+                    }
                 }
             }
 
