@@ -27,12 +27,12 @@ Item {
 
         // Soft rose placeholder colour shown until the image loads
         // (or as a base under the blurred-locked overlay).
-        color: "#f4dde6"
+        color: appStateManager ? appStateManager.themeTileBase : "#f4dde6"
 
         border.width: 1
         border.color: root.unlocked
                       ? Qt.rgba(1, 1, 1, 0.85)
-                      : Qt.rgba(91/255, 25/255, 56/255, 0.10)
+                      : (appStateManager ? appStateManager.themeTileBorder : Qt.rgba(91/255, 25/255, 56/255, 0.10))
         Behavior on border.color { ColorAnimation { duration: 180 } }
 
         // The actual photograph. We always render it; the blur and
@@ -71,7 +71,7 @@ Item {
         Rectangle {
             anchors.fill: parent
             radius: parent.radius
-            color: Qt.rgba(220/255, 70/255, 130/255, 0.22)
+            color: appStateManager ? appStateManager.themeTileVeil : Qt.rgba(220/255, 70/255, 130/255, 0.22)
             opacity: root.unlocked ? 0.0 : 1.0
             Behavior on opacity { NumberAnimation { duration: 240 } }
         }
@@ -88,7 +88,7 @@ Item {
             visible: !root.unlocked
             color: Qt.rgba(1, 1, 1, 0.88)
             border.width: 1
-            border.color: Qt.rgba(159/255, 47/255, 97/255, 0.22)
+            border.color: appStateManager ? appStateManager.themeControlBorder : Qt.rgba(159/255, 47/255, 97/255, 0.22)
 
             Text {
                 anchors.centerIn: parent
@@ -98,7 +98,7 @@ Item {
                 // fonts, which is acceptable.
                 text: "\uD83D\uDD12"
                 font.pixelSize: lockPill.width * 0.5
-                color: "#9f2f61"
+                color: appStateManager ? appStateManager.themeControlText : "#9f2f61"
             }
         }
 

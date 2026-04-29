@@ -21,6 +21,21 @@ class AppStateManager : public QObject
     Q_PROPERTY(QVariantMap currentPuzzle
                    READ currentPuzzle
                        NOTIFY currentPuzzleChanged)
+    Q_PROPERTY(QString themeTintLight READ themeTintLight NOTIFY characterTypeChanged)
+    Q_PROPERTY(QString themeTintMid READ themeTintMid NOTIFY characterTypeChanged)
+    Q_PROPERTY(QString themeTintDeep READ themeTintDeep NOTIFY characterTypeChanged)
+    Q_PROPERTY(QString themeAccentStart READ themeAccentStart NOTIFY characterTypeChanged)
+    Q_PROPERTY(QString themeAccentEnd READ themeAccentEnd NOTIFY characterTypeChanged)
+    Q_PROPERTY(QString themeAccentSoftStart READ themeAccentSoftStart NOTIFY characterTypeChanged)
+    Q_PROPERTY(QString themeAccentSoftEnd READ themeAccentSoftEnd NOTIFY characterTypeChanged)
+    Q_PROPERTY(QString themeTextPrimary READ themeTextPrimary NOTIFY characterTypeChanged)
+    Q_PROPERTY(QString themeTextSecondary READ themeTextSecondary NOTIFY characterTypeChanged)
+    Q_PROPERTY(QString themeTextStrong READ themeTextStrong NOTIFY characterTypeChanged)
+    Q_PROPERTY(QString themeTileBase READ themeTileBase NOTIFY characterTypeChanged)
+    Q_PROPERTY(QString themeTileVeil READ themeTileVeil NOTIFY characterTypeChanged)
+    Q_PROPERTY(QString themeTileBorder READ themeTileBorder NOTIFY characterTypeChanged)
+    Q_PROPERTY(QString themeControlBorder READ themeControlBorder NOTIFY characterTypeChanged)
+    Q_PROPERTY(QString themeControlText READ themeControlText NOTIFY characterTypeChanged)
 
     // Gallery feed for QML. The list is recomputed whenever the
     // user's character preference changes or a puzzle unlock happens,
@@ -57,6 +72,21 @@ class AppStateManager : public QObject
 
     QString characterType() const;
     void setCharacterType(const QString& type);
+    QString themeTintLight() const;
+    QString themeTintMid() const;
+    QString themeTintDeep() const;
+    QString themeAccentStart() const;
+    QString themeAccentEnd() const;
+    QString themeAccentSoftStart() const;
+    QString themeAccentSoftEnd() const;
+    QString themeTextPrimary() const;
+    QString themeTextSecondary() const;
+    QString themeTextStrong() const;
+    QString themeTileBase() const;
+    QString themeTileVeil() const;
+    QString themeTileBorder() const;
+    QString themeControlBorder() const;
+    QString themeControlText() const;
 
     QVariantMap currentPuzzle() const;
 

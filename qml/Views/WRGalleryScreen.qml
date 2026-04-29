@@ -60,13 +60,13 @@ WRScreen {
                             text: qsTr("Gallery")
                             font.pixelSize: 24
                             font.weight: Font.Bold
-                            color: "#35111f"
+                            color: appStateManager ? appStateManager.themeTextPrimary : "#35111f"
                         }
                         Text {
                             text: qsTr("Discovered images")
                             font.pixelSize: 13
                             font.weight: Font.DemiBold
-                            color: Qt.rgba(0.42, 0.23, 0.31, 0.72)
+                            color: appStateManager ? appStateManager.themeTextSecondary : Qt.rgba(0.42, 0.23, 0.31, 0.72)
                         }
                     }
 
@@ -82,11 +82,11 @@ WRScreen {
                         radius: 24
 
                         gradient: Gradient {
-                            GradientStop { position: 0.0; color: "#fff4f9" }
-                            GradientStop { position: 1.0; color: "#f58ab6" }
+                            GradientStop { position: 0.0; color: appStateManager ? appStateManager.themeAccentSoftStart : "#fff4f9" }
+                            GradientStop { position: 1.0; color: appStateManager ? appStateManager.themeAccentSoftEnd : "#f58ab6" }
                         }
                         border.width: 1
-                        border.color: Qt.rgba(0.45, 0.15, 0.3, 0.10)
+                        border.color: appStateManager ? appStateManager.themeTileBorder : Qt.rgba(0.45, 0.15, 0.3, 0.10)
 
                         Text {
                             anchors.centerIn: parent
@@ -99,7 +99,7 @@ WRScreen {
                                        : 0)
                             font.pixelSize: 19
                             font.weight: Font.Black
-                            color: "#401425"
+                            color: appStateManager ? appStateManager.themeTextStrong : "#401425"
                         }
                     }
                 }
@@ -169,12 +169,12 @@ WRScreen {
 
             Rectangle {
                 width: 14; height: 14; radius: 7
-                color: Qt.rgba(0.86, 0.24, 0.52, 0.16)
+                color: appStateManager ? appStateManager.themeTileVeil : Qt.rgba(0.86, 0.24, 0.52, 0.16)
 
                 Rectangle {
                     anchors.centerIn: parent
                     width: 6; height: 6; radius: 3
-                    color: "#d94b86"
+                    color: appStateManager ? appStateManager.themeAccentStart : "#d94b86"
                 }
             }
 
@@ -182,7 +182,7 @@ WRScreen {
                 text: qsTr("Solve puzzles to unlock more images")
                 font.pixelSize: 13
                 font.weight: Font.DemiBold
-                color: Qt.rgba(0.23, 0.09, 0.15, 0.62)
+                color: appStateManager ? appStateManager.themeTextSecondary : Qt.rgba(0.23, 0.09, 0.15, 0.62)
             }
         }
     }

@@ -205,8 +205,8 @@ WRScreen {
             gradient: Gradient {
                 orientation: Gradient.Vertical
                 GradientStop { position: 0.0;  color: "#fff0f6" }
-                GradientStop { position: 0.55; color: "#f8d7e8" }
-                GradientStop { position: 1.0;  color: "#e8a8c8" }
+                GradientStop { position: 0.55; color: appStateManager ? appStateManager.themeTintMid : "#f8d7e8" }
+                GradientStop { position: 1.0;  color: appStateManager ? appStateManager.themeTintDeep : "#e8a8c8" }
             }
         }
 
@@ -426,8 +426,8 @@ WRScreen {
                     color: done ? Qt.rgba(239/255, 79/255, 145/255, 0.34)
                                 : Qt.rgba(1, 1, 1, 0.72)
                     border.width: 1
-                    border.color: done ? Qt.rgba(239/255, 79/255, 145/255, 0.55)
-                                       : Qt.rgba(159/255, 47/255, 97/255, 0.22)
+                    border.color: appStateManager ? appStateManager.themeControlBorder
+                                                  : Qt.rgba(159/255, 47/255, 97/255, 0.22)
                     Behavior on color { ColorAnimation { duration: 360 } }
 
                     Text {
@@ -442,7 +442,8 @@ WRScreen {
                         font.pixelSize: dp(11)
                         font.weight: Font.Black
                         font.letterSpacing: dp(0.6)
-                        color: done ? "#b03268" : Qt.rgba(159/255, 47/255, 97/255, 0.62)
+                        color: appStateManager ? appStateManager.themeControlText
+                                               : Qt.rgba(159/255, 47/255, 97/255, 0.62)
                     }
                 }
             }
@@ -737,7 +738,7 @@ WRScreen {
                        ? Qt.rgba(1, 1, 1, 0.70)
                        : Qt.rgba(1, 1, 1, 0.86)
                 border.width: 1
-                border.color: Qt.rgba(159/255, 47/255, 97/255, 0.22)
+                border.color: appStateManager ? appStateManager.themeControlBorder : Qt.rgba(159/255, 47/255, 97/255, 0.22)
                 Behavior on color { ColorAnimation { duration: 100 } }
 
                 Text {
@@ -745,7 +746,7 @@ WRScreen {
                     text: "Clear"
                     font.pixelSize: dp(15)
                     font.weight: Font.Black
-                    color: "#9f2f61"
+                    color: appStateManager ? appStateManager.themeControlText : "#9f2f61"
                 }
                 MouseArea {
                     id: clearArea
@@ -763,7 +764,7 @@ WRScreen {
                        ? Qt.rgba(1, 1, 1, 0.70)
                        : Qt.rgba(1, 1, 1, 0.86)
                 border.width: 1
-                border.color: Qt.rgba(159/255, 47/255, 97/255, 0.22)
+                border.color: appStateManager ? appStateManager.themeControlBorder : Qt.rgba(159/255, 47/255, 97/255, 0.22)
                 Behavior on color { ColorAnimation { duration: 100 } }
 
                 Row {
@@ -774,7 +775,7 @@ WRScreen {
                         anchors.verticalCenter: parent.verticalCenter
                         font.pixelSize: dp(18)
                         font.weight: Font.Black
-                        color: "#9f2f61"
+                        color: appStateManager ? appStateManager.themeControlText : "#9f2f61"
                         rotation: shuffleArea.pressed ? 180 : 0
                         Behavior on rotation {
                             NumberAnimation { duration: 280; easing.type: Easing.OutCubic }
@@ -785,7 +786,7 @@ WRScreen {
                         anchors.verticalCenter: parent.verticalCenter
                         font.pixelSize: dp(15)
                         font.weight: Font.Black
-                        color: "#9f2f61"
+                        color: appStateManager ? appStateManager.themeControlText : "#9f2f61"
                     }
                 }
                 MouseArea {

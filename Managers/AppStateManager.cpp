@@ -46,6 +46,156 @@ QString AppStateManager::characterType() const
     return UserData::characterTypeToString(m_userData.characterType);
 }
 
+QString AppStateManager::themeTintLight() const
+{
+    switch (m_userData.characterType) {
+    case CharacterType::Male: return "#eef7ff";
+    case CharacterType::Mixed: return "#fffcee";
+    case CharacterType::Female: return "#fff7fa";
+    }
+    return "#fff7fa";
+}
+
+QString AppStateManager::themeTintMid() const
+{
+    switch (m_userData.characterType) {
+    case CharacterType::Male: return "#dcecff";
+    case CharacterType::Mixed: return "#f8efd5";
+    case CharacterType::Female: return "#f8dce8";
+    }
+    return "#f8dce8";
+}
+
+QString AppStateManager::themeTintDeep() const
+{
+    switch (m_userData.characterType) {
+    case CharacterType::Male: return "#adcbef";
+    case CharacterType::Mixed: return "#e8d29f";
+    case CharacterType::Female: return "#e9adc5";
+    }
+    return "#e9adc5";
+}
+
+QString AppStateManager::themeAccentStart() const
+{
+    switch (m_userData.characterType) {
+    case CharacterType::Male: return "#5ca8eb";
+    case CharacterType::Mixed: return "#ebc85c";
+    case CharacterType::Female: return "#eb5c99";
+    }
+    return "#eb5c99";
+}
+
+QString AppStateManager::themeAccentEnd() const
+{
+    switch (m_userData.characterType) {
+    case CharacterType::Male: return "#3974ad";
+    case CharacterType::Mixed: return "#ad8c39";
+    case CharacterType::Female: return "#ad3974";
+    }
+    return "#ad3974";
+}
+
+QString AppStateManager::themeAccentSoftStart() const
+{
+    switch (m_userData.characterType) {
+    case CharacterType::Male: return "#f4f9ff";
+    case CharacterType::Mixed: return "#fffdf4";
+    case CharacterType::Female: return "#fff4f9";
+    }
+    return "#fff4f9";
+}
+
+QString AppStateManager::themeAccentSoftEnd() const
+{
+    switch (m_userData.characterType) {
+    case CharacterType::Male: return "#8abcf5";
+    case CharacterType::Mixed: return "#f5da8a";
+    case CharacterType::Female: return "#f58ab6";
+    }
+    return "#f58ab6";
+}
+
+QString AppStateManager::themeTextPrimary() const
+{
+    switch (m_userData.characterType) {
+    case CharacterType::Male: return "#112335";
+    case CharacterType::Mixed: return "#352c11";
+    case CharacterType::Female: return "#35111f";
+    }
+    return "#35111f";
+}
+
+QString AppStateManager::themeTextSecondary() const
+{
+    switch (m_userData.characterType) {
+    case CharacterType::Male: return "#3a556b";
+    case CharacterType::Mixed: return "#6b5a3a";
+    case CharacterType::Female: return "#6b3a4f";
+    }
+    return "#6b3a4f";
+}
+
+QString AppStateManager::themeTextStrong() const
+{
+    switch (m_userData.characterType) {
+    case CharacterType::Male: return "#142a40";
+    case CharacterType::Mixed: return "#403514";
+    case CharacterType::Female: return "#401425";
+    }
+    return "#401425";
+}
+
+QString AppStateManager::themeTileBase() const
+{
+    switch (m_userData.characterType) {
+    case CharacterType::Male: return "#dde9f4";
+    case CharacterType::Mixed: return "#f4efdd";
+    case CharacterType::Female: return "#f4dde6";
+    }
+    return "#f4dde6";
+}
+
+QString AppStateManager::themeTileVeil() const
+{
+    switch (m_userData.characterType) {
+    case CharacterType::Male: return "#384682dc";
+    case CharacterType::Mixed: return "#38dcb446";
+    case CharacterType::Female: return "#38dc4682";
+    }
+    return "#38dc4682";
+}
+
+QString AppStateManager::themeTileBorder() const
+{
+    switch (m_userData.characterType) {
+    case CharacterType::Male: return "#1a19385b";
+    case CharacterType::Mixed: return "#1a5b4a19";
+    case CharacterType::Female: return "#1a5b1938";
+    }
+    return "#1a5b1938";
+}
+
+QString AppStateManager::themeControlBorder() const
+{
+    switch (m_userData.characterType) {
+    case CharacterType::Male: return "#382f619f";
+    case CharacterType::Mixed: return "#389f7f2f";
+    case CharacterType::Female: return "#389f2f61";
+    }
+    return "#389f2f61";
+}
+
+QString AppStateManager::themeControlText() const
+{
+    switch (m_userData.characterType) {
+    case CharacterType::Male: return "#2f619f";
+    case CharacterType::Mixed: return "#9f7f2f";
+    case CharacterType::Female: return "#9f2f61";
+    }
+    return "#9f2f61";
+}
+
 void AppStateManager::setCharacterType(const QString& type)
 {
     auto newType = UserData::characterTypeFromString(type);

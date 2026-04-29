@@ -89,7 +89,7 @@ WRScreen {
 
                 Rectangle {
                     anchors.fill: parent
-                    color: "#ffeef5"
+                    color: appStateManager ? appStateManager.themeAccentSoftStart : "#ffeef5"
                     opacity: 0.35
                 }
             }
@@ -111,13 +111,13 @@ WRScreen {
                         text: qsTr("Play")
                         font.pixelSize: 28
                         font.bold: true
-                        color: "#35111f"
+                        color: appStateManager ? appStateManager.themeTextPrimary : "#35111f"
                     }
 
                     Text {
                         text: qsTr("Start a new puzzle")
                         font.pixelSize: 14
-                        color: "#6b3a4f"
+                        color: appStateManager ? appStateManager.themeTextSecondary : "#6b3a4f"
                     }
                 }
 
@@ -127,8 +127,8 @@ WRScreen {
                     radius: 999
 
                     gradient: Gradient {
-                        GradientStop { position: 0; color: "#eb5c99" }
-                        GradientStop { position: 1; color: "#ad3974" }
+                        GradientStop { position: 0; color: appStateManager ? appStateManager.themeAccentStart : "#eb5c99" }
+                        GradientStop { position: 1; color: appStateManager ? appStateManager.themeAccentEnd : "#ad3974" }
                     }
 
                     Text {
@@ -164,13 +164,13 @@ WRScreen {
                         text: qsTr("Gallery")
                         font.pixelSize: 26
                         font.bold: true
-                        color: "#35111f"
+                        color: appStateManager ? appStateManager.themeTextPrimary : "#35111f"
                     }
 
                     Text {
                         text: qsTr("Discovered images")
                         font.pixelSize: 14
-                        color: "#6b3a4f"
+                        color: appStateManager ? appStateManager.themeTextSecondary : "#6b3a4f"
                     }
                 }
 
@@ -180,8 +180,8 @@ WRScreen {
                     radius: 28
 
                     gradient: Gradient {
-                        GradientStop { position: 0; color: "#fff4f9" }
-                        GradientStop { position: 1; color: "#f58ab6" }
+                        GradientStop { position: 0; color: appStateManager ? appStateManager.themeAccentSoftStart : "#fff4f9" }
+                        GradientStop { position: 1; color: appStateManager ? appStateManager.themeAccentSoftEnd : "#f58ab6" }
                     }
 
                     Text {
@@ -189,7 +189,7 @@ WRScreen {
                         text: root.unlockedImages + "/" + root.totalImages
                         font.pixelSize: 20
                         font.bold: true
-                        color: "#401425"
+                        color: appStateManager ? appStateManager.themeTextStrong : "#401425"
                     }
                 }
             }
@@ -218,13 +218,13 @@ WRScreen {
                         text: qsTr("Settings")
                         font.pixelSize: 24
                         font.bold: true
-                        color: "#35111f"
+                        color: appStateManager ? appStateManager.themeTextPrimary : "#35111f"
                     }
 
                     Text {
                         text: qsTr("Selected preferences")
                         font.pixelSize: 14
-                        color: "#6b3a4f"
+                        color: appStateManager ? appStateManager.themeTextSecondary : "#6b3a4f"
                     }
                 }
 
@@ -234,15 +234,15 @@ WRScreen {
                     radius: 21
 
                     gradient: Gradient {
-                        GradientStop { position: 0; color: "#fff7fb" }
-                        GradientStop { position: 1; color: "#e969a1" }
+                        GradientStop { position: 0; color: appStateManager ? appStateManager.themeAccentSoftStart : "#fff7fb" }
+                        GradientStop { position: 1; color: appStateManager ? appStateManager.themeAccentStart : "#e969a1" }
                     }
 
                     Text {
                         anchors.centerIn: parent
                         text: "+"
                         font.pixelSize: 20
-                        color: "#401425"
+                        color: appStateManager ? appStateManager.themeTextStrong : "#401425"
                     }
                 }
             }
