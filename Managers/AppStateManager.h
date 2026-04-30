@@ -65,11 +65,19 @@ class AppStateManager : public QObject
     Screen currentScreen() const;
 
     // User preferences
-    bool onboardingCompleted() const;
     QString languageLevel() const;
     QString characterType() const;
     void setLanguageLevel(const QString &level);
     void setCharacterType(const QString &type);
+
+    // Puzzle
+    QVariantMap currentPuzzle() const;
+    void generateNewPuzzle();
+
+           // Gallery
+    QVariantList galleryImages() const;
+    int unlockedImagesCount() const;
+    int totalImagesCount() const;
 
     // Theme
     QString themeTintLight() const;
@@ -87,15 +95,6 @@ class AppStateManager : public QObject
     QString themeTileBorder() const;
     QString themeControlBorder() const;
     QString themeControlText() const;
-
-    // Puzzle
-    QVariantMap currentPuzzle() const;
-    void generateNewPuzzle();
-
-    // Gallery
-    QVariantList galleryImages() const;
-    int unlockedImagesCount() const;
-    int totalImagesCount() const;
 
     // QML-invokable actions
     Q_INVOKABLE void goHome();

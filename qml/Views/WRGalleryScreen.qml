@@ -2,16 +2,9 @@ import QtQuick
 import QtQuick.Layouts
 import "../Components"
 
-// Gallery view. Strict MVVM: this file owns *only* presentation. The
-// list of images, their unlocked state, and both counters all come
-// from `appStateManager` (see AppStateManager::galleryImages).
 WRScreen {
     id: root
 
-    // Emitted when the user taps an unlocked tile. Back navigation is handled
-    // globally by WRBackArrow → appStateManager.goBack(); do not duplicate
-    // here (there is no WRScreen.backClicked signal, so `onBackClicked`
-    // bindings are invalid on this root).
     signal imageClicked(int imageId, string imageSource)
     property bool imageViewerOpen: false
     property string selectedImageSource: ""
@@ -23,16 +16,12 @@ WRScreen {
         anchors.margins: 16
         spacing: 14
 
-        // ── Gallery card ─────────────────────────────────────────────
-        // Header row (title + counter badge) followed by a flickable
-        // grid of tiles. The whole card stretches to fill the page.
         WRCard {
             id: galleryCard
             Layout.fillWidth:  true
             Layout.fillHeight: true
             interactive: false
 
-            // Grid tunables — kept on the card so they're easy to find.
             readonly property int columnsCount: 3
             readonly property int gap: 12
             readonly property int innerPadding: 18
@@ -48,7 +37,6 @@ WRScreen {
                 anchors.margins: galleryCard.innerPadding
                 spacing: 16
 
-                // ── Header: title (left) + counter pill (right) ──
                 RowLayout {
                     Layout.fillWidth: true
                     spacing: 12
@@ -72,10 +60,6 @@ WRScreen {
                         }
                     }
 
-                    // Counter pill — pinned to the right side of the
-                    // card header. Same gradient and proportions as the
-                    // home-screen badge so the two screens read as one
-                    // visual system.
                     Rectangle {
                         id: counterBadge
                         Layout.alignment: Qt.AlignVCenter | Qt.AlignRight
@@ -106,7 +90,6 @@ WRScreen {
                     }
                 }
 
-                // ── Image grid ───────────────────────────────────
                 Item {
                     Layout.fillWidth:  true
                     Layout.fillHeight: true
@@ -126,12 +109,6 @@ WRScreen {
                             spacing: galleryCard.gap
 
                             Repeater {
-                                // Pure-data model from C++: a list of
-                                // { id, source, unlocked } maps. The
-                                // Repeater rebuilds whenever AppStateManager
-                                // emits galleryImagesChanged, which it
-                                // does on init, preference change and
-                                // every successful puzzle solve.
                                 model: appStateManager
                                        ? appStateManager.galleryImages
                                        : []
@@ -151,10 +128,6 @@ WRScreen {
                         }
                     }
 
-                    // Empty-state hint — only shown when the storage
-                    // layer returned no images at all (e.g. malformed
-                    // images.json). Keeps the screen from looking
-                    // broken if assets are missing.
                     Text {
                         anchors.centerIn: parent
                         visible: appStateManager
@@ -167,7 +140,6 @@ WRScreen {
             }
         }
 
-        // ── Footer hint ──────────────────────────────────────────────
         Row {
             Layout.alignment: Qt.AlignHCenter
             spacing: 8

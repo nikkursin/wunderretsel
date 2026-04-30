@@ -12,8 +12,11 @@ class StorageManager
     StorageManager();
 
     UserData loadUserData();
+
     bool saveUser(const UserData &data);
+
     QVector<WordEntry> loadWordsByLevel(LanguageLevel level);
+
     QVector<ImageEntry> loadImagesByPreference(CharacterType characterType);
 
   private:

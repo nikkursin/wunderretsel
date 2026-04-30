@@ -449,8 +449,8 @@ GeneratedPuzzle finalizePuzzle(const AttemptResult &attempt, int rows, int cols)
     QHash<QChar, int> wheelCounts;
     for (const PlacedWord &pw : puzzle.words)
     {
-        for (auto it = letterCounts(pw.word).constBegin(); it != letterCounts(pw.word).constEnd();
-             ++it)
+        const QHash<QChar, int> counts = letterCounts(pw.word);
+        for (auto it = counts.constBegin(); it != counts.constEnd(); ++it)
             wheelCounts[it.key()] = qMax(wheelCounts.value(it.key(), 0), it.value());
     }
 

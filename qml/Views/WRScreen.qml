@@ -28,7 +28,7 @@ AppPage {
             GradientStop { position: 1.0; color: appStateManager ? appStateManager.themeTintDeep : "#e9adc5" }
         }
 
-        Item { // TODO: Need more improvement according to what was given on the UI design
+        Item {
             id: glowLayer
             anchors.fill: parent
 
