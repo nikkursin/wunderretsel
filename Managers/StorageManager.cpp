@@ -1,172 +1,134 @@
 #include "StorageManager.h"
+
+#include <QDir>
+#include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
-#include <QJsonArray>
 #include <QJsonParseError>
-#include <QDir>
 #include <QStandardPaths>
 
-StorageManager::StorageManager() {
-    QString dir = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation);
-    QDir().mkpath(dir);
-    m_userFilePath = dir + "/user.json";
+// ─── Constructor ──────────────────────────────────────────────────────────────
 
-    // Ensure user.json exists on every app launch so subsequent reads/writes
-    // always operate on a real file.
-    if (!QFile::exists(m_userFilePath)) {
-        if (!saveUser(UserData{})) {
-            qWarning() << "Failed to create default user.json at"
-                       << m_userFilePath;
-        } else {
-            qInfo() << "Created default user.json at"
-                    << m_userFilePath;
-        }
-    }
+StorageManager::StorageManager()
+{
+    const QString dataDir = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation);
+    QDir().mkpath(dataDir);
+    m_userFilePath = dataDir + "/user.json";
+
+    if (QFile::exists(m_userFilePath))
+        return;
+
+    if (saveUser(UserData{}))
+        qInfo() << "Created default user.json at" << m_userFilePath;
+    else
+        qWarning() << "Failed to create default user.json at" << m_userFilePath;
 }
+
+// ─── User data ────────────────────────────────────────────────────────────────
 
 UserData StorageManager::loadUserData()
 {
     UserData data;
-
     qInfo() << "Loading user data from" << m_userFilePath;
 
     QFile file(m_userFilePath);
 
-    if (!file.exists()) {
-        qWarning() << "user.json does not exist:"
-                   << m_userFilePath;
+    if (!file.exists())
+    {
+        qWarning() << "user.json does not exist:" << m_userFilePath;
         return data;
     }
 
-    if (!file.open(QIODevice::ReadOnly)) {
-        qWarning() << "Failed to open user.json for reading:"
-                   << m_userFilePath
+    if (!file.open(QIODevice::ReadOnly))
+    {
+        qWarning() << "Failed to open user.json for reading:" << m_userFilePath
                    << "error:" << file.errorString();
         return data;
     }
 
-    const QByteArray jsonData = file.readAll();
+    QJsonParseError parseError;
+    const QJsonDocument doc = QJsonDocument::fromJson(file.readAll(), &parseError);
     file.close();
 
-    QJsonParseError parseError;
-    const QJsonDocument doc =
-        QJsonDocument::fromJson(jsonData, &parseError);
-
-    if (parseError.error != QJsonParseError::NoError || !doc.isObject()) {
-        qWarning() << "Invalid user.json:"
-                   << m_userFilePath
+    if (parseError.error != QJsonParseError::NoError || !doc.isObject())
+    {
+        qWarning() << "Invalid user.json:" << m_userFilePath
                    << "parseError:" << parseError.errorString();
         return data;
     }
 
     const QJsonObject root = doc.object();
+    const QJsonObject preferences = root.value("preferences").toObject();
+    const QJsonObject progress = root.value("progress").toObject();
 
-    data.isOnboardingCompleted =
-        root.value("onboardingCompleted").toBool(false);
-
-    const QJsonObject preferences =
-        root.value("preferences").toObject();
-
+    data.isOnboardingCompleted = root.value("onboardingCompleted").toBool(false);
     data.level =
-        UserData::languageLevelFromString(
-            preferences.value("languageLevel").toString("A1")
-            );
-
+        UserData::languageLevelFromString(preferences.value("languageLevel").toString("A1"));
     data.characterType =
-        UserData::characterTypeFromString(
-            preferences.value("characterType").toString("mixed")
-            );
+        UserData::characterTypeFromString(preferences.value("characterType").toString("mixed"));
+    data.solvedPuzzleCount = progress.value("solvedPuzzleCount").toInt(0);
 
-    const QJsonObject progress =
-        root.value("progress").toObject();
+    auto collectIds = [](const QJsonArray &arr)
+    {
+        QList<int> ids;
+        for (const QJsonValue &v : arr)
+            if (v.isDouble())
+                ids.append(v.toInt());
+        return ids;
+    };
 
-    const QJsonArray usedWordsArray =
-        progress.value("usedWordIds").toArray();
-
-    for (const QJsonValue& value : usedWordsArray) {
-        if (value.isDouble()) {
-            data.usedWordsIds.append(value.toInt());
-        }
-    }
-
-    const QJsonArray unlockedImagesArray =
-        progress.value("unlockedImageIds").toArray();
-
-    for (const QJsonValue& value : unlockedImagesArray) {
-        if (value.isDouble()) {
-            data.unlockedImagesIds.append(value.toInt());
-        }
-    }
-
-    data.solvedPuzzleCount =
-        progress.value("solvedPuzzleCount").toInt(0);
+    data.usedWordsIds = collectIds(progress.value("usedWordIds").toArray());
+    data.unlockedImagesIds = collectIds(progress.value("unlockedImageIds").toArray());
 
     return data;
 }
 
-bool StorageManager::saveUser(const UserData& userData)
+bool StorageManager::saveUser(const UserData &userData)
 {
-    QJsonObject root;
-
-    root["onboardingCompleted"] = userData.isOnboardingCompleted;
-
-    QJsonObject preferences;
-
-    preferences["languageLevel"] =
-        UserData::languageLevelToString(userData.level);
-
-    preferences["characterType"] =
-        UserData::characterTypeToString(userData.characterType);
-
-    root["preferences"] = preferences;
-
-    QJsonObject progress;
-
     QJsonArray usedWordsArray;
-
-    for (int wordId : userData.usedWordsIds) {
-        usedWordsArray.append(wordId);
-    }
-
-    progress["usedWordIds"] = usedWordsArray;
+    for (int id : userData.usedWordsIds)
+        usedWordsArray.append(id);
 
     QJsonArray unlockedImagesArray;
+    for (int id : userData.unlockedImagesIds)
+        unlockedImagesArray.append(id);
 
-    for (int imageId : userData.unlockedImagesIds) {
-        unlockedImagesArray.append(imageId);
-    }
-
+    QJsonObject progress;
+    progress["usedWordIds"] = usedWordsArray;
     progress["unlockedImageIds"] = unlockedImagesArray;
-
     progress["solvedPuzzleCount"] = userData.solvedPuzzleCount;
 
+    QJsonObject preferences;
+    preferences["languageLevel"] = UserData::languageLevelToString(userData.level);
+    preferences["characterType"] = UserData::characterTypeToString(userData.characterType);
+
+    QJsonObject root;
+    root["onboardingCompleted"] = userData.isOnboardingCompleted;
+    root["preferences"] = preferences;
     root["progress"] = progress;
 
-    QJsonDocument doc(root);
-    QByteArray jsonData = doc.toJson(QJsonDocument::Indented);
+    const QByteArray jsonData = QJsonDocument(root).toJson(QJsonDocument::Indented);
 
     QFile file(m_userFilePath);
-
-    if (!file.open(QIODevice::WriteOnly | QIODevice::Truncate)) {
-        qWarning() << "Failed to open user.json for writing:"
-                   << m_userFilePath
+    if (!file.open(QIODevice::WriteOnly | QIODevice::Truncate))
+    {
+        qWarning() << "Failed to open user.json for writing:" << m_userFilePath
                    << "error:" << file.errorString();
         return false;
     }
 
-    if (file.write(jsonData) == -1) {
-        qWarning() << "Failed to write user.json:"
-                   << m_userFilePath
+    if (file.write(jsonData) == -1)
+    {
+        qWarning() << "Failed to write user.json:" << m_userFilePath
                    << "error:" << file.errorString();
-        file.close();
         return false;
     }
-
-    file.close();
 
     qInfo() << "Saved user.json to" << m_userFilePath;
     return true;
 }
+
+// ─── Asset loaders ────────────────────────────────────────────────────────────
 
 QVector<WordEntry> StorageManager::loadWordsByLevel(LanguageLevel level)
 {
@@ -176,11 +138,9 @@ QVector<WordEntry> StorageManager::loadWordsByLevel(LanguageLevel level)
     const QString wordsPath = QStringLiteral(":/assets/data/words.json");
 
     QFile file(wordsPath);
-
-    if (!file.open(QIODevice::ReadOnly)) {
-        qWarning() << "Failed to open words.json:"
-                   << wordsPath
-                   << "error:" << file.errorString();
+    if (!file.open(QIODevice::ReadOnly))
+    {
+        qWarning() << "Failed to open words.json:" << wordsPath << "error:" << file.errorString();
         return result;
     }
 
@@ -188,28 +148,26 @@ QVector<WordEntry> StorageManager::loadWordsByLevel(LanguageLevel level)
     const QJsonDocument doc = QJsonDocument::fromJson(file.readAll(), &parseError);
     file.close();
 
-    if (!doc.isObject()) {
-        qWarning() << "Invalid words.json root, expected object:"
-                   << wordsPath
+    if (!doc.isObject())
+    {
+        qWarning() << "Invalid words.json, expected object:" << wordsPath
                    << "parseError:" << parseError.errorString();
         return result;
     }
 
-    const QJsonArray wordsArray = doc.object().value(levelKey).toArray();
-
-    for (const QJsonValue& value : wordsArray) {
+    for (const QJsonValue &value : doc.object().value(levelKey).toArray())
+    {
         if (!value.isObject())
             continue;
 
         const QJsonObject obj = value.toObject();
+        const int id = obj.value("id").toInt(-1);
+        const QString word = obj.value("word").toString();
 
-        WordEntry entry;
-        entry.id = obj.value("id").toInt(-1);
-        entry.word = obj.value("word").toString();
-        entry.level = level;
+        if (id == -1 || word.isEmpty())
+            continue;
 
-        if (entry.id != -1 && !entry.word.isEmpty())
-            result.append(entry);
+        result.append({id, word, level});
     }
 
     return result;
@@ -222,10 +180,9 @@ QVector<ImageEntry> StorageManager::loadImagesByPreference(CharacterType charact
     const QString imagesPath = QStringLiteral(":/assets/data/images.json");
     QFile file(imagesPath);
 
-    if (!file.open(QIODevice::ReadOnly)) {
-        qWarning() << "Failed to open images.json:"
-                   << imagesPath
-                   << "error:" << file.errorString();
+    if (!file.open(QIODevice::ReadOnly))
+    {
+        qWarning() << "Failed to open images.json:" << imagesPath << "error:" << file.errorString();
         return result;
     }
 
@@ -233,55 +190,48 @@ QVector<ImageEntry> StorageManager::loadImagesByPreference(CharacterType charact
     const QJsonDocument doc = QJsonDocument::fromJson(file.readAll(), &parseError);
     file.close();
 
-    if (!doc.isArray()) {
-        qWarning() << "Invalid images.json root, expected array:"
-                   << imagesPath
+    if (!doc.isArray())
+    {
+        qWarning() << "Invalid images.json, expected array:" << imagesPath
                    << "parseError:" << parseError.errorString();
         return result;
     }
 
     const QString selectedType = UserData::characterTypeToString(characterType);
 
-    for (const QJsonValue& value : doc.array()) {
+    auto normalizeQrcPath = [](const QString &raw) -> QString
+    {
+        if (raw.startsWith(QStringLiteral("qrc:/")))
+            return raw;
+        if (raw.startsWith(QLatin1Char(':')))
+            return QStringLiteral("qrc") + raw;
+        if (!raw.isEmpty() && !raw.contains(QStringLiteral("://")))
+        {
+            const QString withSlash =
+                raw.startsWith(QLatin1Char('/')) ? raw : QLatin1Char('/') + raw;
+            return QStringLiteral("qrc") + withSlash;
+        }
+        return raw;
+    };
+
+    for (const QJsonValue &value : doc.array())
+    {
         if (!value.isObject())
             continue;
 
         const QJsonObject obj = value.toObject();
+        const QString imgType = obj.value("characterType").toString();
 
-        const QString imageType = obj.value("characterType").toString();
-
-        if (!(characterType == CharacterType::Mixed ||
-              imageType == selectedType))
+        if (characterType != CharacterType::Mixed && imgType != selectedType)
             continue;
 
-        ImageEntry entry;
-        entry.id = obj.value("id").toInt(-1);
+        const int id = obj.value("id").toInt(-1);
+        const QString source = normalizeQrcPath(obj.value("source").toString().trimmed());
 
-        // Normalise the source into a QML-loadable URL. The dictionary
-        // historically stored Qt resource paths in either the C++ form
-        // (":/assets/...") or as a bare relative path ("assets/..."); QML's
-        // Image::source is a URL and only understands the "qrc:/" scheme.
-        // Coerce all of those into a single canonical form here so the QML
-        // side never has to think about it.
-        QString rawSource = obj.value("source").toString().trimmed();
-        if (rawSource.startsWith(QStringLiteral("qrc:/"))) {
-            entry.source = rawSource;
-        } else if (rawSource.startsWith(QLatin1Char(':'))) {
-            entry.source = QStringLiteral("qrc") + rawSource;       // ":/x" -> "qrc:/x"
-        } else if (!rawSource.isEmpty()
-                   && !rawSource.contains(QStringLiteral("://"))) {
-            // bare path like "assets/images/.." -> "qrc:/assets/images/.."
-            if (!rawSource.startsWith(QLatin1Char('/')))
-                rawSource.prepend(QLatin1Char('/'));
-            entry.source = QStringLiteral("qrc") + rawSource;
-        } else {
-            entry.source = rawSource;                               // file://, http://, ...
-        }
+        if (id == -1 || source.isEmpty())
+            continue;
 
-        entry.characterType = UserData::characterTypeFromString(imageType);
-
-        if (entry.id != -1 && !entry.source.isEmpty())
-            result.append(entry);
+        result.append({id, source, UserData::characterTypeFromString(imgType)});
     }
 
     return result;

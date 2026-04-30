@@ -42,9 +42,5 @@ int main(int argc, char *argv[])
         return -1;
     }
 
-    // to start your project with Felgo Hot Reload, comment (remove) the lines "felgo.setMainQmlFileName ..." & "engine.load ...",
-    // and uncomment the line below
-    //FelgoHotReload felgoHotReload(&engine);
-
     return app.exec();
 }

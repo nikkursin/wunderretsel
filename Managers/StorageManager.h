@@ -3,8 +3,8 @@
 
 #include <QString>
 
-#include "Models/UserData.h"
 #include "Models/EntriesData.h"
+#include "Models/UserData.h"
 
 class StorageManager
 {
@@ -12,9 +12,7 @@ class StorageManager
     StorageManager();
 
     UserData loadUserData();
-
-    bool saveUser(const UserData& data);
-
+    bool saveUser(const UserData &data);
     QVector<WordEntry> loadWordsByLevel(LanguageLevel level);
     QVector<ImageEntry> loadImagesByPreference(CharacterType characterType);
 

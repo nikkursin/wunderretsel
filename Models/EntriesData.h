@@ -1,16 +1,18 @@
 #ifndef ENTRIESDATA_H
 #define ENTRIESDATA_H
 
-#include <QString>
 #include "UserData.h"
+#include <QString>
 
-struct WordEntry {
+struct WordEntry
+{
     int id = -1;
     QString word;
     LanguageLevel level;
 };
 
-struct ImageEntry {
+struct ImageEntry
+{
     int id = -1;
     QString source;
     CharacterType characterType;

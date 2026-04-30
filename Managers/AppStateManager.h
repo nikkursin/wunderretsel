@@ -8,19 +8,14 @@
 
 #include "Models/EntriesData.h"
 #include "Models/UserData.h"
-#include "StorageManager.h"
 #include "PuzzleManager.h"
+#include "StorageManager.h"
 
 class AppStateManager : public QObject
 {
     Q_OBJECT
 
-    Q_PROPERTY(Screen currentScreen READ currentScreen NOTIFY currentScreenChanged)
-    Q_PROPERTY(QString languageLevel READ languageLevel WRITE setLanguageLevel NOTIFY languageLevelChanged)
-    Q_PROPERTY(QString characterType READ characterType WRITE setCharacterType NOTIFY characterTypeChanged)
-    Q_PROPERTY(QVariantMap currentPuzzle
-                   READ currentPuzzle
-                       NOTIFY currentPuzzleChanged)
+    // Theme — all driven by characterType
     Q_PROPERTY(QString themeTintLight READ themeTintLight NOTIFY characterTypeChanged)
     Q_PROPERTY(QString themeTintMid READ themeTintMid NOTIFY characterTypeChanged)
     Q_PROPERTY(QString themeTintDeep READ themeTintDeep NOTIFY characterTypeChanged)
@@ -37,21 +32,22 @@ class AppStateManager : public QObject
     Q_PROPERTY(QString themeControlBorder READ themeControlBorder NOTIFY characterTypeChanged)
     Q_PROPERTY(QString themeControlText READ themeControlText NOTIFY characterTypeChanged)
 
-    // Gallery feed for QML. The list is recomputed whenever the
-    // user's character preference changes or a puzzle unlock happens,
-    // so the view never has to track unlock state itself.
-    Q_PROPERTY(QVariantList galleryImages
-                   READ galleryImages
-                       NOTIFY galleryImagesChanged)
-    Q_PROPERTY(int unlockedImagesCount
-                   READ unlockedImagesCount
-                       NOTIFY galleryImagesChanged)
-    Q_PROPERTY(int totalImagesCount
-                   READ totalImagesCount
-                       NOTIFY galleryImagesChanged)
+    // Navigation & state
+    Q_PROPERTY(Screen currentScreen READ currentScreen NOTIFY currentScreenChanged)
+    Q_PROPERTY(QVariantMap currentPuzzle READ currentPuzzle NOTIFY currentPuzzleChanged)
+    Q_PROPERTY(QVariantList galleryImages READ galleryImages NOTIFY galleryImagesChanged)
+
+    Q_PROPERTY(int unlockedImagesCount READ unlockedImagesCount NOTIFY galleryImagesChanged)
+    Q_PROPERTY(int totalImagesCount READ totalImagesCount NOTIFY galleryImagesChanged)
+
+    Q_PROPERTY(
+        QString languageLevel READ languageLevel WRITE setLanguageLevel NOTIFY languageLevelChanged)
+    Q_PROPERTY(
+        QString characterType READ characterType WRITE setCharacterType NOTIFY characterTypeChanged)
 
   public:
-    enum Screen {
+    enum Screen
+    {
         Home,
         Play,
         Gallery,
@@ -60,18 +56,22 @@ class AppStateManager : public QObject
     };
     Q_ENUM(Screen)
 
-    explicit AppStateManager(QSharedPointer<StorageManager> storageManager, QObject *parent = nullptr);
+    explicit AppStateManager(QSharedPointer<StorageManager> storageManager,
+                             QObject *parent = nullptr);
 
     bool init();
 
+    // Screen
     Screen currentScreen() const;
+
+    // User preferences
     bool onboardingCompleted() const;
-
     QString languageLevel() const;
-    void setLanguageLevel(const QString& level);
-
     QString characterType() const;
-    void setCharacterType(const QString& type);
+    void setLanguageLevel(const QString &level);
+    void setCharacterType(const QString &type);
+
+    // Theme
     QString themeTintLight() const;
     QString themeTintMid() const;
     QString themeTintDeep() const;
@@ -88,39 +88,24 @@ class AppStateManager : public QObject
     QString themeControlBorder() const;
     QString themeControlText() const;
 
+    // Puzzle
     QVariantMap currentPuzzle() const;
+    void generateNewPuzzle();
 
-    // Gallery accessors (read-only from QML).
-    //   galleryImages       – list of { id, source, unlocked } maps for
-    //                         every image visible under the user's
-    //                         current character preference.
-    //   unlockedImagesCount – number of those images that the user has
-    //                         already revealed.
-    //   totalImagesCount    – size of `galleryImages`. Both counters use
-    //                         the same denominator so "x / y" is always
-    //                         consistent, including after a preference
-    //                         change.
+    // Gallery
     QVariantList galleryImages() const;
     int unlockedImagesCount() const;
     int totalImagesCount() const;
 
-    void generateNewPuzzle();
-
+    // QML-invokable actions
     Q_INVOKABLE void goHome();
     Q_INVOKABLE void goPlay();
     Q_INVOKABLE void goGallery();
     Q_INVOKABLE void goSettings();
     Q_INVOKABLE void goOnboarding();
     Q_INVOKABLE void goBack();
-
-    Q_INVOKABLE void completeOnboarding(const QString &languageLevel,
-                                        const QString &characterType);
-
+    Q_INVOKABLE void completeOnboarding(const QString &languageLevel, const QString &characterType);
     Q_INVOKABLE void savePreferences();
-
-    // Called by QML when the player finishes the current puzzle.
-    // Increments the solved-puzzle counter (drives difficulty scaling)
-    // and persists user state.
     Q_INVOKABLE void notifyPuzzleSolved();
 
   signals:
@@ -131,38 +116,21 @@ class AppStateManager : public QObject
     void galleryImagesChanged();
 
   private:
-    void navigateTo(const Screen& screen);
-
+    void navigateTo(const Screen &screen);
+    void clearActivePuzzle();
+    void refreshGalleryImages();
     bool ongoingPuzzlePresent() const;
 
-    // Drop the cached puzzle and notify QML.
-    //
-    // Called whenever we leave the Play screen. WRPlayScreen's solved-state
-    // bookkeeping lives in QML and is destroyed when the Loader switches
-    // sourceComponent away from playComponent; without this, returning to
-    // Play (e.g. via back navigation from Gallery, or after pressing Back
-    // on the completion card) would re-render the just-finished crossword
-    // as un-solved – effectively "restarting" the same puzzle.
-    void clearActivePuzzle();
-
-    // Re-load the gallery image cache from StorageManager using the
-    // user's currently-selected character preference, then notify QML.
-    // Cheap: images.json is small and parsed once per call.
-    void refreshGalleryImages();
-
-    UserData m_userData;
     QSharedPointer<StorageManager> m_storageManager;
     PuzzleManager m_puzzleManager;
+    UserData m_userData;
 
     Screen m_currentScreen = Home;
-    QVector<Screen> m_history;
-    GeneratedPuzzle m_currentPuzzle;
     bool hasOngoingPuzzle = false;
+    QVector<Screen> m_history;
 
-    // Cached gallery feed for the current character preference.
-    // Kept in C++ so QML never has to filter / look up unlock state.
+    GeneratedPuzzle m_currentPuzzle;
     QVector<ImageEntry> m_galleryImages;
-
 };
 
 #endif // APPSTATEMANAGER_H

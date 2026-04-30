@@ -1,564 +1,238 @@
-#include "AppStateManager.h"
+#include "StorageManager.h"
 
-#include <QDebug>
-#include <QSet>
+#include <QDir>
+#include <QJsonArray>
+#include <QJsonDocument>
+#include <QJsonObject>
+#include <QJsonParseError>
+#include <QStandardPaths>
 
-AppStateManager::AppStateManager(QSharedPointer<StorageManager> storageManager, QObject *parent) : QObject{parent}, m_storageManager(storageManager), m_puzzleManager(storageManager){}
+// ─── Constructor ──────────────────────────────────────────────────────────────
 
-bool AppStateManager::init() {
-    m_userData = m_storageManager->loadUserData();
-    refreshGalleryImages();
+StorageManager::StorageManager()
+{
+    const QString dataDir = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation);
+    QDir().mkpath(dataDir);
+    m_userFilePath = dataDir + "/user.json";
 
-    if(m_userData.isOnboardingCompleted) navigateTo(Home);
-        else navigateTo(Onboarding);
+    if (QFile::exists(m_userFilePath))
+        return;
 
+    if (saveUser(UserData{}))
+        qInfo() << "Created default user.json at" << m_userFilePath;
+    else
+        qWarning() << "Failed to create default user.json at" << m_userFilePath;
+}
 
+// ─── User data ────────────────────────────────────────────────────────────────
+
+UserData StorageManager::loadUserData()
+{
+    UserData data;
+    qInfo() << "Loading user data from" << m_userFilePath;
+
+    QFile file(m_userFilePath);
+
+    if (!file.exists())
+    {
+        qWarning() << "user.json does not exist:" << m_userFilePath;
+        return data;
+    }
+
+    if (!file.open(QIODevice::ReadOnly))
+    {
+        qWarning() << "Failed to open user.json for reading:" << m_userFilePath
+                   << "error:" << file.errorString();
+        return data;
+    }
+
+    QJsonParseError parseError;
+    const QJsonDocument doc = QJsonDocument::fromJson(file.readAll(), &parseError);
+    file.close();
+
+    if (parseError.error != QJsonParseError::NoError || !doc.isObject())
+    {
+        qWarning() << "Invalid user.json:" << m_userFilePath
+                   << "parseError:" << parseError.errorString();
+        return data;
+    }
+
+    const QJsonObject root = doc.object();
+    const QJsonObject preferences = root.value("preferences").toObject();
+    const QJsonObject progress = root.value("progress").toObject();
+
+    data.isOnboardingCompleted = root.value("onboardingCompleted").toBool(false);
+    data.level =
+        UserData::languageLevelFromString(preferences.value("languageLevel").toString("A1"));
+    data.characterType =
+        UserData::characterTypeFromString(preferences.value("characterType").toString("mixed"));
+    data.solvedPuzzleCount = progress.value("solvedPuzzleCount").toInt(0);
+
+    auto collectIds = [](const QJsonArray &arr)
+    {
+        QList<int> ids;
+        for (const QJsonValue &v : arr)
+            if (v.isDouble())
+                ids.append(v.toInt());
+        return ids;
+    };
+
+    data.usedWordsIds = collectIds(progress.value("usedWordIds").toArray());
+    data.unlockedImagesIds = collectIds(progress.value("unlockedImageIds").toArray());
+
+    return data;
+}
+
+bool StorageManager::saveUser(const UserData &userData)
+{
+    QJsonArray usedWordsArray;
+    for (int id : userData.usedWordsIds)
+        usedWordsArray.append(id);
+
+    QJsonArray unlockedImagesArray;
+    for (int id : userData.unlockedImagesIds)
+        unlockedImagesArray.append(id);
+
+    QJsonObject progress;
+    progress["usedWordIds"] = usedWordsArray;
+    progress["unlockedImageIds"] = unlockedImagesArray;
+    progress["solvedPuzzleCount"] = userData.solvedPuzzleCount;
+
+    QJsonObject preferences;
+    preferences["languageLevel"] = UserData::languageLevelToString(userData.level);
+    preferences["characterType"] = UserData::characterTypeToString(userData.characterType);
+
+    QJsonObject root;
+    root["onboardingCompleted"] = userData.isOnboardingCompleted;
+    root["preferences"] = preferences;
+    root["progress"] = progress;
+
+    const QByteArray jsonData = QJsonDocument(root).toJson(QJsonDocument::Indented);
+
+    QFile file(m_userFilePath);
+    if (!file.open(QIODevice::WriteOnly | QIODevice::Truncate))
+    {
+        qWarning() << "Failed to open user.json for writing:" << m_userFilePath
+                   << "error:" << file.errorString();
+        return false;
+    }
+
+    if (file.write(jsonData) == -1)
+    {
+        qWarning() << "Failed to write user.json:" << m_userFilePath
+                   << "error:" << file.errorString();
+        return false;
+    }
+
+    qInfo() << "Saved user.json to" << m_userFilePath;
     return true;
 }
 
-AppStateManager::Screen AppStateManager::currentScreen() const
+// ─── Asset loaders ────────────────────────────────────────────────────────────
+
+QVector<WordEntry> StorageManager::loadWordsByLevel(LanguageLevel level)
 {
-    return m_currentScreen;
-}
+    QVector<WordEntry> result;
 
-bool AppStateManager::onboardingCompleted() const {
-    return m_userData.isOnboardingCompleted;
-}
+    const QString levelKey = UserData::languageLevelToString(level);
+    const QString wordsPath = QStringLiteral(":/assets/data/words.json");
 
-QString AppStateManager::languageLevel() const
-{
-    return UserData::languageLevelToString(m_userData.level);
-}
-
-void AppStateManager::setLanguageLevel(const QString& level)
-{
-    auto newLevel = UserData::languageLevelFromString(level);
-
-    if (m_userData.level == newLevel)
-        return;
-
-    m_userData.level = newLevel;
-    emit languageLevelChanged();
-}
-
-QString AppStateManager::characterType() const
-{
-    return UserData::characterTypeToString(m_userData.characterType);
-}
-
-QString AppStateManager::themeTintLight() const
-{
-    switch (m_userData.characterType) {
-    case CharacterType::Male: return "#eef7ff";
-    case CharacterType::Mixed: return "#fffcee";
-    case CharacterType::Female: return "#fff7fa";
+    QFile file(wordsPath);
+    if (!file.open(QIODevice::ReadOnly))
+    {
+        qWarning() << "Failed to open words.json:" << wordsPath << "error:" << file.errorString();
+        return result;
     }
-    return "#fff7fa";
-}
 
-QString AppStateManager::themeTintMid() const
-{
-    switch (m_userData.characterType) {
-    case CharacterType::Male: return "#dcecff";
-    case CharacterType::Mixed: return "#f8efd5";
-    case CharacterType::Female: return "#f8dce8";
+    QJsonParseError parseError;
+    const QJsonDocument doc = QJsonDocument::fromJson(file.readAll(), &parseError);
+    file.close();
+
+    if (!doc.isObject())
+    {
+        qWarning() << "Invalid words.json, expected object:" << wordsPath
+                   << "parseError:" << parseError.errorString();
+        return result;
     }
-    return "#f8dce8";
-}
 
-QString AppStateManager::themeTintDeep() const
-{
-    switch (m_userData.characterType) {
-    case CharacterType::Male: return "#adcbef";
-    case CharacterType::Mixed: return "#e8d29f";
-    case CharacterType::Female: return "#e9adc5";
-    }
-    return "#e9adc5";
-}
-
-QString AppStateManager::themeAccentStart() const
-{
-    switch (m_userData.characterType) {
-    case CharacterType::Male: return "#5ca8eb";
-    case CharacterType::Mixed: return "#ebc85c";
-    case CharacterType::Female: return "#eb5c99";
-    }
-    return "#eb5c99";
-}
-
-QString AppStateManager::themeAccentEnd() const
-{
-    switch (m_userData.characterType) {
-    case CharacterType::Male: return "#3974ad";
-    case CharacterType::Mixed: return "#ad8c39";
-    case CharacterType::Female: return "#ad3974";
-    }
-    return "#ad3974";
-}
-
-QString AppStateManager::themeAccentSoftStart() const
-{
-    switch (m_userData.characterType) {
-    case CharacterType::Male: return "#f4f9ff";
-    case CharacterType::Mixed: return "#fffdf4";
-    case CharacterType::Female: return "#fff4f9";
-    }
-    return "#fff4f9";
-}
-
-QString AppStateManager::themeAccentSoftEnd() const
-{
-    switch (m_userData.characterType) {
-    case CharacterType::Male: return "#8abcf5";
-    case CharacterType::Mixed: return "#f5da8a";
-    case CharacterType::Female: return "#f58ab6";
-    }
-    return "#f58ab6";
-}
-
-QString AppStateManager::themeTextPrimary() const
-{
-    switch (m_userData.characterType) {
-    case CharacterType::Male: return "#112335";
-    case CharacterType::Mixed: return "#352c11";
-    case CharacterType::Female: return "#35111f";
-    }
-    return "#35111f";
-}
-
-QString AppStateManager::themeTextSecondary() const
-{
-    switch (m_userData.characterType) {
-    case CharacterType::Male: return "#3a556b";
-    case CharacterType::Mixed: return "#6b5a3a";
-    case CharacterType::Female: return "#6b3a4f";
-    }
-    return "#6b3a4f";
-}
-
-QString AppStateManager::themeTextStrong() const
-{
-    switch (m_userData.characterType) {
-    case CharacterType::Male: return "#142a40";
-    case CharacterType::Mixed: return "#403514";
-    case CharacterType::Female: return "#401425";
-    }
-    return "#401425";
-}
-
-QString AppStateManager::themeTileBase() const
-{
-    switch (m_userData.characterType) {
-    case CharacterType::Male: return "#dde9f4";
-    case CharacterType::Mixed: return "#f4efdd";
-    case CharacterType::Female: return "#f4dde6";
-    }
-    return "#f4dde6";
-}
-
-QString AppStateManager::themeTileVeil() const
-{
-    switch (m_userData.characterType) {
-    case CharacterType::Male: return "#384682dc";
-    case CharacterType::Mixed: return "#38dcb446";
-    case CharacterType::Female: return "#38dc4682";
-    }
-    return "#38dc4682";
-}
-
-QString AppStateManager::themeTileBorder() const
-{
-    switch (m_userData.characterType) {
-    case CharacterType::Male: return "#1a19385b";
-    case CharacterType::Mixed: return "#1a5b4a19";
-    case CharacterType::Female: return "#1a5b1938";
-    }
-    return "#1a5b1938";
-}
-
-QString AppStateManager::themeControlBorder() const
-{
-    switch (m_userData.characterType) {
-    case CharacterType::Male: return "#382f619f";
-    case CharacterType::Mixed: return "#389f7f2f";
-    case CharacterType::Female: return "#389f2f61";
-    }
-    return "#389f2f61";
-}
-
-QString AppStateManager::themeControlText() const
-{
-    switch (m_userData.characterType) {
-    case CharacterType::Male: return "#2f619f";
-    case CharacterType::Mixed: return "#9f7f2f";
-    case CharacterType::Female: return "#9f2f61";
-    }
-    return "#9f2f61";
-}
-
-void AppStateManager::setCharacterType(const QString& type)
-{
-    auto newType = UserData::characterTypeFromString(type);
-
-    if (m_userData.characterType == newType)
-        return;
-
-    m_userData.characterType = newType;
-    // Character preference changed → the gallery's filtered image set
-    // changes too, so re-load the cache before emitting.
-    refreshGalleryImages();
-    emit characterTypeChanged();
-}
-
-QVariantMap AppStateManager::currentPuzzle() const
-{
-    // Flatten the GeneratedPuzzle into the QVariantMap shape WRPlayScreen.qml
-    // expects. With real crosswords a cell can belong to multiple words,
-    // so we expose `cellWordIds` (list-per-cell of word indexes) and let
-    // QML decide which cells to reveal.
-    //
-    //   - rows / columns : grid dimensions (drive QML layout)
-    //   - words          : QStringList of canonical words
-    //   - letters        : QStringList of unique letters for the wheel
-    //   - grid           : QStringList of rows*columns entries; "" = gap,
-    //                      otherwise the uppercase letter of the cell
-    //   - cellWordIds    : QVariantList of QVariantLists; per-cell list of
-    //                      word indexes into `words` that cover this cell
-    //   - wordRows       : kept for backward-compatibility (start row of
-    //                      each word)
-    //   - imageSource    : qrc path of the reward image
-    QVariantMap puzzle;
-
-    const int rows = m_currentPuzzle.rows > 0 ? m_currentPuzzle.rows : 7;
-    const int columns = m_currentPuzzle.columns > 0 ? m_currentPuzzle.columns : 7;
-    const int cellCount = rows * columns;
-
-    QStringList grid;
-    grid.reserve(cellCount);
-    for (int i = 0; i < cellCount; ++i)
-        grid.append(QString());
-
-    // NB: `QList<QVariant>::append(const QList<QVariant>&)` would *concatenate*,
-    // not insert, if we passed a bare QVariantList. Wrap in QVariant explicitly
-    // and pre-size the list so [] is always a valid in-place write.
-    QVariantList cellWordIds;
-    cellWordIds.reserve(cellCount);
-    const QVariant emptyIds = QVariant::fromValue(QVariantList());
-    for (int i = 0; i < cellCount; ++i)
-        cellWordIds.append(emptyIds);
-
-    for (const PuzzleCell& cell : m_currentPuzzle.cells) {
-        if (cell.index < 0 || cell.index >= cellCount)
+    for (const QJsonValue &value : doc.object().value(levelKey).toArray())
+    {
+        if (!value.isObject())
             continue;
-        if (cell.active)
-            grid[cell.index] = QString(cell.letter);
 
-        QVariantList ids;
-        ids.reserve(cell.wordIds.size());
-        for (int id : cell.wordIds)
-            ids.append(QVariant(id));
-        cellWordIds[cell.index] = QVariant::fromValue(ids);
+        const QJsonObject obj = value.toObject();
+        const int id = obj.value("id").toInt(-1);
+        const QString word = obj.value("word").toString();
+
+        if (id == -1 || word.isEmpty())
+            continue;
+
+        result.append({id, word, level});
     }
 
-    QStringList words;
-    QVariantList wordRows;
-    words.reserve(m_currentPuzzle.words.size());
-    wordRows.reserve(m_currentPuzzle.words.size());
+    return result;
+}
 
-    for (const PlacedWord& word : m_currentPuzzle.words) {
-        words.append(word.word);
-        wordRows.append(word.row);
+QVector<ImageEntry> StorageManager::loadImagesByPreference(CharacterType characterType)
+{
+    QVector<ImageEntry> result;
+
+    const QString imagesPath = QStringLiteral(":/assets/data/images.json");
+    QFile file(imagesPath);
+
+    if (!file.open(QIODevice::ReadOnly))
+    {
+        qWarning() << "Failed to open images.json:" << imagesPath << "error:" << file.errorString();
+        return result;
     }
 
-    puzzle["rows"] = rows;
-    puzzle["columns"] = columns;
-    puzzle["imageSource"] = m_currentPuzzle.imageSource;
-    puzzle["letters"] = m_currentPuzzle.letters;
-    puzzle["words"] = words;
-    puzzle["wordRows"] = wordRows;
-    puzzle["cellWordIds"] = cellWordIds;
-    puzzle["grid"] = grid;
+    QJsonParseError parseError;
+    const QJsonDocument doc = QJsonDocument::fromJson(file.readAll(), &parseError);
+    file.close();
 
-    return puzzle;
-}
-
-QVariantList AppStateManager::galleryImages() const
-{
-    // Project the cached ImageEntry list into a QML-friendly shape:
-    //   [ { id: int, source: "qrc:/...", unlocked: bool }, ... ]
-    // We materialise the unlock set once per call (m_userData.unlockedImagesIds
-    // is a QVector, so naive contains() would be O(n) per check) – with
-    // 30 images and ≤30 unlocked entries this is trivially fast.
-    const QSet<int> unlocked(m_userData.unlockedImagesIds.begin(),
-                              m_userData.unlockedImagesIds.end());
-
-    QVariantList list;
-    list.reserve(m_galleryImages.size());
-
-    for (const ImageEntry& entry : m_galleryImages) {
-        QVariantMap item;
-        item["id"]       = entry.id;
-        item["source"]   = entry.source;
-        item["unlocked"] = unlocked.contains(entry.id);
-        list.append(item);
+    if (!doc.isArray())
+    {
+        qWarning() << "Invalid images.json, expected array:" << imagesPath
+                   << "parseError:" << parseError.errorString();
+        return result;
     }
 
-    return list;
-}
+    const QString selectedType = UserData::characterTypeToString(characterType);
 
-int AppStateManager::unlockedImagesCount() const
-{
-    // Counter is anchored to the *currently visible* gallery feed, so
-    // "x / y" stays consistent if the player switches preferences in
-    // settings. (E.g. unlocking 5 mixed images and then narrowing the
-    // preference to "female" should not show "5 / 10" if none of those
-    // unlocks belong to the female set.)
-    const QSet<int> unlocked(m_userData.unlockedImagesIds.begin(),
-                              m_userData.unlockedImagesIds.end());
-    int count = 0;
-    for (const ImageEntry& entry : m_galleryImages) {
-        if (unlocked.contains(entry.id))
-            ++count;
-    }
-    return count;
-}
-
-int AppStateManager::totalImagesCount() const
-{
-    return m_galleryImages.size();
-}
-
-void AppStateManager::refreshGalleryImages()
-{
-    m_galleryImages = m_storageManager->loadImagesByPreference(
-        m_userData.characterType);
-    emit galleryImagesChanged();
-}
-
-void AppStateManager::generateNewPuzzle()
-{
-    // Hard contract for callers (e.g. goPlay): when this method returns
-    // with hasOngoingPuzzle == true, m_currentPuzzle is guaranteed to
-    // contain a fully validated layout (>= kMinPlayableWords). Validation
-    // happens BEFORE the puzzle is exposed to QML, so the Play screen
-    // never has to deal with an in-flight invalid puzzle.
-    constexpr int kMinPlayableWords = 3;
-
-    // Upper bound on retries. PuzzleManager already runs a generous
-    // attempt budget internally; this loop is the caller-side safety net
-    // for the rare case its output didn't satisfy the gameplay floor.
-    // Keep it bounded so we can never spin forever even on a hostile
-    // dictionary, but high enough that hitting the cap is essentially
-    // impossible in practice.
-    constexpr int kMaxRetries = 32;
-
-    const QSet<int> unlockedImageIds(m_userData.unlockedImagesIds.begin(),
-                                      m_userData.unlockedImagesIds.end());
-
-    auto attempt = [&](const QSet<int>& excludedWordIds) {
-        return m_puzzleManager.generatePuzzle(
-            excludedWordIds,
-            unlockedImageIds,
-            m_userData.level,
-            m_userData.characterType,
-            m_userData.solvedPuzzleCount
-        );
+    auto normalizeQrcPath = [](const QString &raw) -> QString
+    {
+        if (raw.startsWith(QStringLiteral("qrc:/")))
+            return raw;
+        if (raw.startsWith(QLatin1Char(':')))
+            return QStringLiteral("qrc") + raw;
+        if (!raw.isEmpty() && !raw.contains(QStringLiteral("://")))
+        {
+            const QString withSlash =
+                raw.startsWith(QLatin1Char('/')) ? raw : QLatin1Char('/') + raw;
+            return QStringLiteral("qrc") + withSlash;
+        }
+        return raw;
     };
 
-    GeneratedPuzzle nextPuzzle;
-    bool generated = false;
+    for (const QJsonValue &value : doc.array())
+    {
+        if (!value.isObject())
+            continue;
 
-    for (int retry = 0; retry < kMaxRetries && !generated; ++retry) {
-        // Phase 1: honour usedWordIds (avoid recently seen words).
-        const QSet<int> usedWordIds(m_userData.usedWordsIds.begin(),
-                                     m_userData.usedWordsIds.end());
-        GeneratedPuzzle candidate = attempt(usedWordIds);
-        if (candidate.words.size() >= kMinPlayableWords) {
-            nextPuzzle = std::move(candidate);
-            generated = true;
-            break;
-        }
+        const QJsonObject obj = value.toObject();
+        const QString imgType = obj.value("characterType").toString();
 
-        // Phase 2: recycle the dictionary — drop the usedWordIds filter
-        // entirely. The pool just couldn't accommodate a valid layout
-        // under the current restrictions.
-        candidate = attempt(/*excludedWordIds=*/QSet<int>{});
-        if (candidate.words.size() >= kMinPlayableWords) {
-            // Reset history so subsequent generations don't immediately
-            // hit the same dead-end.
-            m_userData.usedWordsIds.clear();
-            nextPuzzle = std::move(candidate);
-            generated = true;
-            break;
-        }
+        if (characterType != CharacterType::Mixed && imgType != selectedType)
+            continue;
 
-        qWarning() << "[AppStateManager] Generation retry" << (retry + 1)
-                   << "produced invalid puzzle; trying again.";
+        const int id = obj.value("id").toInt(-1);
+        const QString source = normalizeQrcPath(obj.value("source").toString().trimmed());
+
+        if (id == -1 || source.isEmpty())
+            continue;
+
+        result.append({id, source, UserData::characterTypeFromString(imgType)});
     }
 
-    if (!generated) {
-        qCritical() << "[AppStateManager] Could not generate a valid puzzle"
-                    << "after" << kMaxRetries
-                    << "retries (min" << kMinPlayableWords << "words).";
-        hasOngoingPuzzle = false;
-        m_currentPuzzle = GeneratedPuzzle{};
-        emit currentPuzzleChanged();
-        return;
-    }
-
-    // Only expose/persist after we have a validated puzzle.
-    m_currentPuzzle = std::move(nextPuzzle);
-    hasOngoingPuzzle = true;
-
-    for (const PlacedWord& word : m_currentPuzzle.words) {
-        if (word.id < 0) continue;
-        if (!m_userData.usedWordsIds.contains(word.id))
-            m_userData.usedWordsIds.append(word.id);
-    }
-
-    m_storageManager->saveUser(m_userData);
-    emit currentPuzzleChanged();
-}
-
-void AppStateManager::notifyPuzzleSolved()
-{
-    if (!hasOngoingPuzzle)
-        return;
-
-    hasOngoingPuzzle = false;
-    m_userData.solvedPuzzleCount += 1;
-
-    bool unlockedNew = false;
-    if (m_currentPuzzle.imageId >= 0
-        && !m_userData.unlockedImagesIds.contains(m_currentPuzzle.imageId)) {
-        m_userData.unlockedImagesIds.append(m_currentPuzzle.imageId);
-        unlockedNew = true;
-    }
-
-    m_storageManager->saveUser(m_userData);
-
-    // The image list itself didn't change (same entries, same order),
-    // only the per-image unlock flag flipped. Re-emitting the gallery
-    // signal triggers QML bindings to recompute `unlocked` /
-    // `unlockedImagesCount` without touching the cache.
-    if (unlockedNew)
-        emit galleryImagesChanged();
-}
-
-void AppStateManager::goHome()
-{
-    const Screen leaving = m_currentScreen;
-    m_history.clear();
-    m_currentScreen = Home;
-    emit currentScreenChanged();
-
-    if (leaving == Play)
-        clearActivePuzzle();
-}
-
-void AppStateManager::goPlay()
-{
-    generateNewPuzzle();
-    if (!hasOngoingPuzzle) {
-        qWarning() << "[AppStateManager] Could not generate a valid puzzle (min 3 words).";
-        return;
-    }
-    navigateTo(Play);
-}
-
-void AppStateManager::goGallery()
-{
-    navigateTo(Gallery);
-}
-
-void AppStateManager::goSettings()
-{
-    navigateTo(Settings);
-}
-
-void AppStateManager::goOnboarding()
-{
-    navigateTo(Onboarding);
-}
-
-void AppStateManager::goBack()
-{
-    const Screen leaving = m_currentScreen;
-
-    if (m_history.isEmpty()) {
-        // No history → fall back to Home directly. We mirror goHome()'s
-        // bookkeeping inline so the puzzle clear at the bottom only
-        // fires once.
-        m_history.clear();
-        m_currentScreen = Home;
-        emit currentScreenChanged();
-    } else {
-        m_currentScreen = m_history.takeLast();
-        emit currentScreenChanged();
-    }
-
-    if (leaving == Play)
-        clearActivePuzzle();
-}
-
-void AppStateManager::completeOnboarding(const QString &languageLevel,
-                                         const QString &characterType)
-{
-    if (languageLevel.isEmpty() || characterType.isEmpty())
-        return;
-
-    m_userData.level = UserData::languageLevelFromString(languageLevel);
-    m_userData.characterType = UserData::characterTypeFromString(characterType);
-    m_userData.isOnboardingCompleted = true;
-
-    m_storageManager->saveUser(m_userData);
-
-    // Character preference is fixed at onboarding → load the gallery
-    // feed so the Home counter and Gallery screen are correct on the
-    // very first frame of the Home screen.
-    refreshGalleryImages();
-
-    navigateTo(Home);
-}
-
-void AppStateManager::savePreferences()
-{
-    m_storageManager->saveUser(m_userData);
-}
-
-void AppStateManager::navigateTo(const Screen& screen)
-{
-    if (m_currentScreen == screen)
-        return;
-
-    const Screen leaving = m_currentScreen;
-
-    // Leaving Play → don't keep it on the back-stack. Returning to a
-    // just-played puzzle via history would re-render a stale crossword
-    // (see clearActivePuzzle()), so we treat Play as a one-shot screen:
-    // any other navigation pops it off the stack entirely.
-    if (leaving != Play)
-        m_history.append(leaving);
-
-    m_currentScreen = screen;
-    emit currentScreenChanged();
-
-    if (leaving == Play)
-        clearActivePuzzle();
-}
-
-void AppStateManager::clearActivePuzzle()
-{
-    if (m_currentPuzzle.words.isEmpty() && !hasOngoingPuzzle)
-        return;
-
-    m_currentPuzzle = GeneratedPuzzle{};
-    hasOngoingPuzzle = false;
-    emit currentPuzzleChanged();
-}
-
-bool AppStateManager::ongoingPuzzlePresent() const
-{
-    return hasOngoingPuzzle &&
-           m_currentPuzzle.solvedWordIds.size() < m_currentPuzzle.words.size();
+    return result;
 }
