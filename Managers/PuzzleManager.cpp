@@ -20,11 +20,12 @@ namespace {
 constexpr int kGridRows = 7;
 constexpr int kGridColumns = 7;
 
-// UI shows a 2×2 (or 2×3) reveal grid. We never go below 4 words
-// (otherwise quadrants stay empty) and never above 6 (would crowd the UI
-// and rarely fits a 7×7 grid with crossings).
-constexpr int kMinWordCount = 4;
+// Gameplay requirement: never generate puzzles below 3 words.
+constexpr int kMinWordCount = 3;
 constexpr int kMaxWordCount = 6;
+
+// Hard validity floor: reject anything below 3 placed words.
+constexpr int kMinValidWordCount = 3;
 
 // Word-length bounds. Spec mandates ≤ 8; we also need ≥ 2 so that a word
 // can actually cross another.
@@ -38,8 +39,10 @@ constexpr int kMaxWheelLetters = 8;
 
 // How many independent generation attempts we make and how long the whole
 // generation is allowed to take (hard wall-clock cap, in milliseconds).
-constexpr int kMaxAttempts = 20;
-constexpr qint64 kTimeBudgetMs = 80;
+// Generous enough that one call almost always returns a valid layout
+// without needing the caller to retry.
+constexpr int kMaxAttempts = 200;
+constexpr qint64 kTimeBudgetMs = 600;
 
 // Scoring weights for placement decisions.
 constexpr int kCrossingBonus = 10;   // per overlap with an existing letter
@@ -276,6 +279,15 @@ AttemptResult tryGenerateOnce(const QVector<WordEntry>& shuffled,
         return h;
     };
 
+    // Guard against the same canonical word appearing twice in a single
+    // puzzle. The candidate pool is already deduped, but we defend in
+    // depth here: dictionary curation drift, locale-sensitive uppercasing
+    // (e.g. "ß" → "SS") or future pool sources could otherwise leak a
+    // duplicate into the placed set, and even one collision is enough to
+    // make the player see the same word twice.
+    QSet<QString> placedCanonical;
+    QSet<int> placedIds;
+
     int placedCount = 0;
     for (const WordEntry& entry : shuffled) {
         if (placedCount >= targetWordCount) break;
@@ -284,6 +296,10 @@ AttemptResult tryGenerateOnce(const QVector<WordEntry>& shuffled,
         if (word.length() < kMinWordLength || word.length() > kMaxWordLength)
             continue;
         if (word.length() > qMin(rows, cols))
+            continue;
+        if (placedCanonical.contains(word))
+            continue;
+        if (entry.id >= 0 && placedIds.contains(entry.id))
             continue;
 
         // Pre-flight wheel-budget check: reject any word whose own letters
@@ -323,6 +339,10 @@ AttemptResult tryGenerateOnce(const QVector<WordEntry>& shuffled,
         result.placed.append(pw);
         result.totalScore += p.score;
         result.totalCrossings += p.crossings;
+
+        placedCanonical.insert(word);
+        if (entry.id >= 0)
+            placedIds.insert(entry.id);
 
         wheelCounts = projectedWheel;
         wheelTotal = projectedTotal;
@@ -599,36 +619,38 @@ GeneratedPuzzle PuzzleManager::generatePuzzle(const QSet<int>& usedWordIds,
 
     const DifficultyTargets dt = computeDifficulty(difficultyFactor);
 
-    QVector<WordEntry> pool = buildCandidatePool(*m_storageManager,
-                                                  level,
-                                                  usedWordIds,
-                                                  dt.maxWordLength);
+    auto buildPool = [&](const QSet<int>& excludeIds) {
+        QVector<WordEntry> pool = buildCandidatePool(*m_storageManager,
+                                                      level,
+                                                      excludeIds,
+                                                      dt.maxWordLength);
+
+        // If the player has used so many words that the pool can no
+        // longer support a full puzzle, recycle the dictionary. We
+        // never want to ship an empty puzzle to the UI.
+        if (pool.size() < dt.wordCount * 2) {
+            QVector<WordEntry> recycled = buildCandidatePool(*m_storageManager,
+                                                              level,
+                                                              /*usedWordIds=*/{},
+                                                              dt.maxWordLength);
+            if (recycled.size() > pool.size())
+                pool = std::move(recycled);
+        }
+
+        // If level-specific resource loading failed or produced too few
+        // entries, widen the search across all levels so gameplay never
+        // stalls.
+        if (pool.size() < dt.wordCount) {
+            QVector<WordEntry> allLevels = buildCandidatePoolAllLevels(
+                *m_storageManager, dt.maxWordLength);
+            if (allLevels.size() > pool.size())
+                pool = std::move(allLevels);
+        }
+        return pool;
+    };
+
+    QVector<WordEntry> pool = buildPool(usedWordIds);
     qInfo() << "[PuzzleManager] Candidate pool size (preferred levels):" << pool.size();
-
-    // Fallback: if the player has used so many words that the pool can no
-    // longer support a full puzzle, recycle the dictionary. We never want
-    // to ship an empty puzzle to the UI.
-    if (pool.size() < dt.wordCount * 2) {
-        QVector<WordEntry> recycled = buildCandidatePool(*m_storageManager,
-                                                           level,
-                                                           /*usedWordIds=*/{},
-                                                           dt.maxWordLength);
-        qInfo() << "[PuzzleManager] Candidate pool size (recycled used words):"
-                << recycled.size();
-        if (recycled.size() > pool.size())
-            pool = std::move(recycled);
-    }
-
-    // Last-resort guard: if level-specific resource loading failed or produced
-    // too few entries, widen search across all levels so gameplay never stalls.
-    if (pool.size() < dt.wordCount) {
-        QVector<WordEntry> allLevels = buildCandidatePoolAllLevels(
-            *m_storageManager, dt.maxWordLength);
-        qWarning() << "[PuzzleManager] Low candidate pool. Falling back to all levels:"
-                   << allLevels.size();
-        if (allLevels.size() > pool.size())
-            pool = std::move(allLevels);
-    }
 
     // Always sort longer-first inside an attempt: long words anchor better
     // crossings and fail fast when they don't fit, which speeds up retries.
@@ -641,64 +663,112 @@ GeneratedPuzzle PuzzleManager::generatePuzzle(const QSet<int>& usedWordIds,
 
     AttemptResult bestAttempt;
     bool haveAttempt = false;
+    bool haveValidAttempt = false; // at least one attempt with ≥ kMinValidWordCount words
     int attemptsRun = 0;
 
-    // Multiple attempts; keep the highest-scoring one. We bail out once
-    // we've found a "perfect" layout (all words placed, every word crosses
-    // at least one other) because more attempts can't beat that.
-    while (attemptsRun < kMaxAttempts && timer.elapsed() < kTimeBudgetMs) {
-        ++attemptsRun;
+    auto qualityKey = [&](const AttemptResult& r, int p, int targetWordCount) {
+        // Tuple ordered for std::tuple comparison (higher is better):
+        //   1. valid?      (>= kMinValidWordCount placed)   – non-negotiable
+        //   2. complete?   (>= targetWordCount placed)      – preferred
+        //   3. crossings   – more interconnected layouts win
+        //   4. raw score   – tie-breaker
+        //   5. placed      – more words is better
+        const bool valid = (p >= kMinValidWordCount);
+        const bool complete = (p >= targetWordCount);
+        return std::make_tuple(valid ? 1 : 0,
+                               complete ? 1 : 0,
+                               r.totalCrossings,
+                               r.totalScore,
+                               p);
+    };
 
-        QVector<WordEntry> attemptPool = pool;
-        shuffleInPlace(attemptPool);
+    // Multiple attempts; keep the highest-scoring VALID one. If no valid
+    // attempt exists we'll widen the pool below and retry. We bail out
+    // once we've found a "perfect" layout (all words placed, every word
+    // crosses at least one other) because more attempts can't beat that.
+    auto runAttempts = [&](int targetWordCount) {
+        while (attemptsRun < kMaxAttempts && timer.elapsed() < kTimeBudgetMs) {
+            ++attemptsRun;
 
-        // Take a generous slice (up to 3× target) so we have room to
-        // reject words that don't fit; sort longest-first inside that
-        // slice for good anchoring.
-        const int sliceSize = qMin(attemptPool.size(), dt.wordCount * 3);
-        attemptPool.resize(sliceSize);
-        sortLongFirst(attemptPool);
+            QVector<WordEntry> attemptPool = pool;
+            shuffleInPlace(attemptPool);
 
-        AttemptResult res = tryGenerateOnce(attemptPool,
-                                             dt.wordCount,
-                                             kGridRows, kGridColumns);
+            // Take a generous slice (up to 3× target) so we have room to
+            // reject words that don't fit; sort longest-first inside that
+            // slice for good anchoring.
+            const int sliceSize = qMin(attemptPool.size(), targetWordCount * 3);
+            attemptPool.resize(sliceSize);
+            sortLongFirst(attemptPool);
 
-        // Score this attempt: prefer all-words-placed, then more crossings,
-        // then higher raw score.
-        const int placed = res.placed.size();
-        const bool isComplete = (placed >= dt.wordCount);
+            AttemptResult res = tryGenerateOnce(attemptPool,
+                                                 targetWordCount,
+                                                 kGridRows, kGridColumns);
 
-        const auto qualityKey = [&](const AttemptResult& r, bool complete, int p) {
-            // (complete?1:0, crossings, score)
-            return std::make_tuple(complete ? 1 : 0, r.totalCrossings, r.totalScore, p);
-        };
+            const int placed = res.placed.size();
+            const bool isValid = (placed >= kMinValidWordCount);
 
-        if (!haveAttempt) {
-            bestAttempt = res;
-            haveAttempt = true;
-        } else if (qualityKey(res, isComplete, placed)
-                   > qualityKey(bestAttempt,
-                                bestAttempt.placed.size() >= dt.wordCount,
-                                bestAttempt.placed.size())) {
-            bestAttempt = res;
+            if (!haveAttempt
+                || qualityKey(res, placed, targetWordCount)
+                       > qualityKey(bestAttempt, bestAttempt.placed.size(), targetWordCount)) {
+                bestAttempt = res;
+                haveAttempt = true;
+                if (isValid) haveValidAttempt = true;
+            }
+
+            // Perfect: every word placed, and every word past the first
+            // crosses at least one other (totalCrossings >= placed - 1).
+            if (isValid
+                && placed >= targetWordCount
+                && res.totalCrossings >= placed - 1) {
+                break;
+            }
         }
+    };
 
-        // Perfect: every word placed, and every word past the first crosses
-        // at least one other (totalCrossings >= placed - 1).
-        if (isComplete
-            && placed >= dt.wordCount
-            && res.totalCrossings >= placed - 1) {
+    // If a high difficulty target is too tight for the current pool/grid,
+    // step the target down until we still satisfy the gameplay floor
+    // (>= kMinValidWordCount words). This prevents "can't start game"
+    // dead-ends at higher solvedPuzzleCount values.
+    for (int target = dt.wordCount; target >= kMinValidWordCount; --target) {
+        runAttempts(target);
+        if (haveValidAttempt)
             break;
+    }
+
+    // Validity safety net: if every attempt produced < kMinValidWordCount
+    // words, the pool is probably too narrow for the current grid /
+    // difficulty. Recycle the dictionary (drop the usedWordIds filter)
+    // and run another batch of attempts. This is the same recovery path
+    // AppStateManager would otherwise have to take after the fact, kept
+    // inside PuzzleManager so the public contract is ">= 3 words or a
+    // logged best-effort fallback".
+    if (!haveValidAttempt) {
+        QVector<WordEntry> wider = buildPool(/*excludeIds=*/{});
+        if (wider.size() > pool.size()) {
+            qWarning() << "[PuzzleManager] No valid attempt with current pool ("
+                       << pool.size() << "). Retrying with recycled dictionary ("
+                       << wider.size() << ").";
+            pool = std::move(wider);
+            attemptsRun = 0;
+            for (int target = dt.wordCount; target >= kMinValidWordCount; --target) {
+                runAttempts(target);
+                if (haveValidAttempt)
+                    break;
+            }
         }
     }
 
     // Hand-off to GeneratedPuzzle.
     GeneratedPuzzle puzzle = finalizePuzzle(bestAttempt, kGridRows, kGridColumns);
-    if (puzzle.words.isEmpty()) {
-        qWarning() << "[PuzzleManager] Generated empty puzzle."
+
+    if (puzzle.words.size() < kMinValidWordCount) {
+        qWarning() << "[PuzzleManager] Generated invalid puzzle (<"
+                   << kMinValidWordCount << " words). Returning empty puzzle."
+                   << "placed=" << puzzle.words.size()
                    << "poolSize=" << pool.size()
                    << "attemptsRun=" << attemptsRun
                    << "difficultyFactor=" << difficultyFactor;
+        return GeneratedPuzzle{};
     }
 
     selectRewardImage(*m_storageManager,

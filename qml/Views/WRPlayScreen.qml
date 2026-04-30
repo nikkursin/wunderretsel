@@ -396,9 +396,14 @@ WRScreen {
         // Renders one pill per word. When the total letter count of all
         // words exceeds 20, the badges wrap onto two rows (≈ half per row)
         // so they don't get squashed off-screen for long-word puzzles.
+        //
+        // `Layout.topMargin` adds breathing room between the crossword
+        // and the guessed-words pills; the column's base `spacing` of
+        // dp(6) was visually too tight against the grid.
         Grid {
             id: wordBadges
             Layout.alignment: Qt.AlignHCenter
+            Layout.topMargin: dp(12)
             visible: !root.puzzleCompleted
 
             readonly property int wordCount:

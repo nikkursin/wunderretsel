@@ -135,6 +135,16 @@ class AppStateManager : public QObject
 
     bool ongoingPuzzlePresent() const;
 
+    // Drop the cached puzzle and notify QML.
+    //
+    // Called whenever we leave the Play screen. WRPlayScreen's solved-state
+    // bookkeeping lives in QML and is destroyed when the Loader switches
+    // sourceComponent away from playComponent; without this, returning to
+    // Play (e.g. via back navigation from Gallery, or after pressing Back
+    // on the completion card) would re-render the just-finished crossword
+    // as un-solved – effectively "restarting" the same puzzle.
+    void clearActivePuzzle();
+
     // Re-load the gallery image cache from StorageManager using the
     // user's currently-selected character preference, then notify QML.
     // Cheap: images.json is small and parsed once per call.

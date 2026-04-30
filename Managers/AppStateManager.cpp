@@ -337,36 +337,78 @@ void AppStateManager::refreshGalleryImages()
 
 void AppStateManager::generateNewPuzzle()
 {
-    m_userData = m_storageManager->loadUserData();
+    // Hard contract for callers (e.g. goPlay): when this method returns
+    // with hasOngoingPuzzle == true, m_currentPuzzle is guaranteed to
+    // contain a fully validated layout (>= kMinPlayableWords). Validation
+    // happens BEFORE the puzzle is exposed to QML, so the Play screen
+    // never has to deal with an in-flight invalid puzzle.
+    constexpr int kMinPlayableWords = 3;
 
-    const QSet<int> usedWordIds(m_userData.usedWordsIds.begin(),
-                                 m_userData.usedWordsIds.end());
+    // Upper bound on retries. PuzzleManager already runs a generous
+    // attempt budget internally; this loop is the caller-side safety net
+    // for the rare case its output didn't satisfy the gameplay floor.
+    // Keep it bounded so we can never spin forever even on a hostile
+    // dictionary, but high enough that hitting the cap is essentially
+    // impossible in practice.
+    constexpr int kMaxRetries = 32;
+
     const QSet<int> unlockedImageIds(m_userData.unlockedImagesIds.begin(),
                                       m_userData.unlockedImagesIds.end());
 
-    m_currentPuzzle = m_puzzleManager.generatePuzzle(
-        usedWordIds,
-        unlockedImageIds,
-        m_userData.level,
-        m_userData.characterType,
-        m_userData.solvedPuzzleCount
-        );
-
-    // Safety net: if generation unexpectedly returns an empty puzzle,
-    // retry once after clearing used-word history.
-    if (m_currentPuzzle.words.isEmpty()) {
-        qWarning() << "[AppStateManager] Empty puzzle generated; retrying with cleared usedWordIds.";
-        m_userData.usedWordsIds.clear();
-        m_currentPuzzle = m_puzzleManager.generatePuzzle(
-            /*usedWordIds=*/QSet<int>{},
+    auto attempt = [&](const QSet<int>& excludedWordIds) {
+        return m_puzzleManager.generatePuzzle(
+            excludedWordIds,
             unlockedImageIds,
             m_userData.level,
             m_userData.characterType,
             m_userData.solvedPuzzleCount
-            );
+        );
+    };
+
+    GeneratedPuzzle nextPuzzle;
+    bool generated = false;
+
+    for (int retry = 0; retry < kMaxRetries && !generated; ++retry) {
+        // Phase 1: honour usedWordIds (avoid recently seen words).
+        const QSet<int> usedWordIds(m_userData.usedWordsIds.begin(),
+                                     m_userData.usedWordsIds.end());
+        GeneratedPuzzle candidate = attempt(usedWordIds);
+        if (candidate.words.size() >= kMinPlayableWords) {
+            nextPuzzle = std::move(candidate);
+            generated = true;
+            break;
+        }
+
+        // Phase 2: recycle the dictionary — drop the usedWordIds filter
+        // entirely. The pool just couldn't accommodate a valid layout
+        // under the current restrictions.
+        candidate = attempt(/*excludedWordIds=*/QSet<int>{});
+        if (candidate.words.size() >= kMinPlayableWords) {
+            // Reset history so subsequent generations don't immediately
+            // hit the same dead-end.
+            m_userData.usedWordsIds.clear();
+            nextPuzzle = std::move(candidate);
+            generated = true;
+            break;
+        }
+
+        qWarning() << "[AppStateManager] Generation retry" << (retry + 1)
+                   << "produced invalid puzzle; trying again.";
     }
 
-    hasOngoingPuzzle = !m_currentPuzzle.words.isEmpty();
+    if (!generated) {
+        qCritical() << "[AppStateManager] Could not generate a valid puzzle"
+                    << "after" << kMaxRetries
+                    << "retries (min" << kMinPlayableWords << "words).";
+        hasOngoingPuzzle = false;
+        m_currentPuzzle = GeneratedPuzzle{};
+        emit currentPuzzleChanged();
+        return;
+    }
+
+    // Only expose/persist after we have a validated puzzle.
+    m_currentPuzzle = std::move(nextPuzzle);
+    hasOngoingPuzzle = true;
 
     for (const PlacedWord& word : m_currentPuzzle.words) {
         if (word.id < 0) continue;
@@ -375,7 +417,6 @@ void AppStateManager::generateNewPuzzle()
     }
 
     m_storageManager->saveUser(m_userData);
-
     emit currentPuzzleChanged();
 }
 
@@ -406,15 +447,22 @@ void AppStateManager::notifyPuzzleSolved()
 
 void AppStateManager::goHome()
 {
+    const Screen leaving = m_currentScreen;
     m_history.clear();
     m_currentScreen = Home;
     emit currentScreenChanged();
+
+    if (leaving == Play)
+        clearActivePuzzle();
 }
 
 void AppStateManager::goPlay()
 {
-    // TODO: Add check on hasOngoingPuzzle
     generateNewPuzzle();
+    if (!hasOngoingPuzzle) {
+        qWarning() << "[AppStateManager] Could not generate a valid puzzle (min 3 words).";
+        return;
+    }
     navigateTo(Play);
 }
 
@@ -435,13 +483,22 @@ void AppStateManager::goOnboarding()
 
 void AppStateManager::goBack()
 {
+    const Screen leaving = m_currentScreen;
+
     if (m_history.isEmpty()) {
-        goHome();
-        return;
+        // No history → fall back to Home directly. We mirror goHome()'s
+        // bookkeeping inline so the puzzle clear at the bottom only
+        // fires once.
+        m_history.clear();
+        m_currentScreen = Home;
+        emit currentScreenChanged();
+    } else {
+        m_currentScreen = m_history.takeLast();
+        emit currentScreenChanged();
     }
 
-    m_currentScreen = m_history.takeLast();
-    emit currentScreenChanged();
+    if (leaving == Play)
+        clearActivePuzzle();
 }
 
 void AppStateManager::completeOnboarding(const QString &languageLevel,
@@ -474,10 +531,30 @@ void AppStateManager::navigateTo(const Screen& screen)
     if (m_currentScreen == screen)
         return;
 
-    m_history.append(m_currentScreen);
-    m_currentScreen = screen;
+    const Screen leaving = m_currentScreen;
 
+    // Leaving Play → don't keep it on the back-stack. Returning to a
+    // just-played puzzle via history would re-render a stale crossword
+    // (see clearActivePuzzle()), so we treat Play as a one-shot screen:
+    // any other navigation pops it off the stack entirely.
+    if (leaving != Play)
+        m_history.append(leaving);
+
+    m_currentScreen = screen;
     emit currentScreenChanged();
+
+    if (leaving == Play)
+        clearActivePuzzle();
+}
+
+void AppStateManager::clearActivePuzzle()
+{
+    if (m_currentPuzzle.words.isEmpty() && !hasOngoingPuzzle)
+        return;
+
+    m_currentPuzzle = GeneratedPuzzle{};
+    hasOngoingPuzzle = false;
+    emit currentPuzzleChanged();
 }
 
 bool AppStateManager::ongoingPuzzlePresent() const
