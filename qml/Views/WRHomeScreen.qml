@@ -9,218 +9,253 @@ WRScreen {
 
     showBackButton: false
 
-    property int unlockedImages: 8
-    property int totalImages: 24
+    readonly property int unlockedImages:
+        appStateManager ? appStateManager.unlockedImagesCount : 0
+    readonly property int totalImages:
+        appStateManager ? appStateManager.totalImagesCount : 0
+    property string playCardImageSource: "qrc:/assets/images/female/sample.jpg"
+    readonly property real horizontalPadding: Math.max(14, Math.min(width * 0.05, 24))
+    readonly property real contentGap: Math.max(12, Math.min(height * 0.02, 20))
+    readonly property real playCardHeight: Math.max(230, Math.min(height * 0.42, 330))
+    readonly property real galleryCardHeight: Math.max(130, Math.min(height * 0.22, 170))
+    readonly property real settingsCardHeight: Math.max(88, Math.min(height * 0.14, 110))
 
     signal playClicked()
     signal galleryClicked()
     signal settingsClicked()
 
-    Column {
-        anchors {
-            top: parent.top
-            left: parent.left
-            right: parent.right
-            margins: 20
-            topMargin: 120
+    function refreshPlayCardImage() {
+        if (!appStateManager || !appStateManager.galleryImages
+                || appStateManager.galleryImages.length === 0) {
+            playCardImageSource = "qrc:/assets/images/female/sample.jpg"
+            return
         }
-        spacing: 16
 
-        WRCard {
-            id: playCard
-            width: parent.width
-            height: 310
-            radius: 28
+        var images = appStateManager.galleryImages
+        var randomIndex = Math.floor(Math.random() * images.length)
+        playCardImageSource = images[randomIndex].source
+    }
 
-            Item {
-                anchors {
-                    left: parent.left
-                    right: parent.right
-                    top: parent.top
-                    margins: 14
+    Component.onCompleted: refreshPlayCardImage()
+
+    Connections {
+        target: appStateManager
+        function onGalleryImagesChanged() {
+            root.refreshPlayCardImage()
+        }
+    }
+
+    Flickable {
+        id: contentFlick
+        anchors.fill: parent
+        anchors.leftMargin: root.horizontalPadding
+        anchors.rightMargin: root.horizontalPadding
+        anchors.bottomMargin: root.horizontalPadding
+        contentWidth: width
+        contentHeight: cardsColumn.height
+        clip: true
+
+        Column {
+            id: cardsColumn
+            width: contentFlick.width
+            spacing: root.contentGap
+
+            WRCard {
+                id: playCard
+                width: parent.width
+                height: root.playCardHeight
+                radius: 28
+
+                Item {
+                    anchors {
+                        left: parent.left
+                        right: parent.right
+                        top: parent.top
+                        margins: 14
+                    }
+                    height: parent.height - 106
+                    clip: true
+
+                    Image {
+                        id: bgImage
+                        anchors.fill: parent
+                        source: root.playCardImageSource
+                        fillMode: Image.PreserveAspectCrop
+                    }
+
+                    MultiEffect {
+                        anchors.fill: bgImage
+                        source: bgImage
+                        blurEnabled: true
+                        blur: 0.8
+                        saturation: 1.1
+                        brightness: 0.1
+                    }
+
+                    Rectangle {
+                        anchors.fill: parent
+                        color: appStateManager ? appStateManager.themeAccentSoftStart : "#ffeef5"
+                        opacity: 0.35
+                    }
                 }
-                height: parent.height - 106
-                clip: true
 
-                Image {
-                    id: bgImage
+                Row {
+                    anchors {
+                        left: parent.left
+                        right: parent.right
+                        bottom: parent.bottom
+                        margins: 22
+                    }
+                    spacing: 16
+
+                    Column {
+                        width: parent.width - 80
+                        spacing: 8
+
+                        Text {
+                            text: qsTr("Play")
+                            font.pixelSize: 28
+                            font.bold: true
+                            color: appStateManager ? appStateManager.themeTextPrimary : "#35111f"
+                        }
+
+                        Text {
+                            text: qsTr("Start a new puzzle")
+                            font.pixelSize: 14
+                            color: appStateManager ? appStateManager.themeTextSecondary : "#6b3a4f"
+                        }
+                    }
+
+                    Rectangle {
+                        width: 48
+                        height: 48
+                        radius: 999
+
+                        gradient: Gradient {
+                            GradientStop { position: 0; color: appStateManager ? appStateManager.themeAccentStart : "#eb5c99" }
+                            GradientStop { position: 1; color: appStateManager ? appStateManager.themeAccentEnd : "#ad3974" }
+                        }
+
+                        Text {
+                            anchors.centerIn: parent
+                            text: "›"
+                            font.pixelSize: 24
+                            color: "white"
+                        }
+                    }
+                }
+
+                MouseArea {
                     anchors.fill: parent
-                    source: "qrc:/assets/images/female/sample.jpg"
-                    fillMode: Image.PreserveAspectCrop
+                    onClicked: root.playClicked()
                 }
+            }
 
-                MultiEffect {
-                    anchors.fill: bgImage
-                    source: bgImage
-                    blurEnabled: true
-                    blur: 0.8
-                    saturation: 1.1
-                    brightness: 0.1
-                }
+            WRCard {
+                width: parent.width
+                height: root.galleryCardHeight
+                radius: 28
 
-                Rectangle {
+                Row {
                     anchors.fill: parent
-                    color: "#ffeef5"
-                    opacity: 0.35
+                    anchors.margins: 22
+                    spacing: 16
+
+                    Column {
+                        width: parent.width - 110
+                        spacing: 8
+
+                        Text {
+                            text: qsTr("Gallery")
+                            font.pixelSize: 26
+                            font.bold: true
+                            color: appStateManager ? appStateManager.themeTextPrimary : "#35111f"
+                        }
+
+                        Text {
+                            text: qsTr("Discovered images")
+                            font.pixelSize: 14
+                            color: appStateManager ? appStateManager.themeTextSecondary : "#6b3a4f"
+                        }
+                    }
+
+                    Rectangle {
+                        width: 92
+                        height: 92
+                        radius: 28
+
+                        gradient: Gradient {
+                            GradientStop { position: 0; color: appStateManager ? appStateManager.themeAccentSoftStart : "#fff4f9" }
+                            GradientStop { position: 1; color: appStateManager ? appStateManager.themeAccentSoftEnd : "#f58ab6" }
+                        }
+
+                        Text {
+                            anchors.centerIn: parent
+                            text: root.unlockedImages + "/" + root.totalImages
+                            font.pixelSize: 20
+                            font.bold: true
+                            color: appStateManager ? appStateManager.themeTextStrong : "#401425"
+                        }
+                    }
+                }
+
+                MouseArea {
+                    anchors.fill: parent
+                    onClicked: root.galleryClicked()
                 }
             }
 
-            Row {
-                anchors {
-                    left: parent.left
-                    right: parent.right
-                    bottom: parent.bottom
-                    margins: 22
-                }
-                spacing: 16
+            WRCard {
+                width: parent.width
+                height: root.settingsCardHeight
+                radius: 24
 
-                Column {
-                    width: parent.width - 80
-                    spacing: 8
+                Row {
+                    anchors.fill: parent
+                    anchors.margins: 20
+                    spacing: 16
 
-                    Text {
-                        text: qsTr("Play")
-                        font.pixelSize: 28
-                        font.bold: true
-                        color: "#35111f"
+                    Column {
+                        width: parent.width - 80
+                        spacing: 6
+
+                        Text {
+                            text: qsTr("Settings")
+                            font.pixelSize: 24
+                            font.bold: true
+                            color: appStateManager ? appStateManager.themeTextPrimary : "#35111f"
+                        }
+
+                        Text {
+                            text: qsTr("Selected preferences")
+                            font.pixelSize: 14
+                            color: appStateManager ? appStateManager.themeTextSecondary : "#6b3a4f"
+                        }
                     }
 
-                    Text {
-                        text: qsTr("Start a new puzzle")
-                        font.pixelSize: 14
-                        color: "#6b3a4f"
-                    }
-                }
+                    Rectangle {
+                        width: 42
+                        height: 42
+                        radius: 21
 
-                Rectangle {
-                    width: 48
-                    height: 48
-                    radius: 999
+                        gradient: Gradient {
+                            GradientStop { position: 0; color: appStateManager ? appStateManager.themeAccentSoftStart : "#fff7fb" }
+                            GradientStop { position: 1; color: appStateManager ? appStateManager.themeAccentStart : "#e969a1" }
+                        }
 
-                    gradient: Gradient {
-                        GradientStop { position: 0; color: "#eb5c99" }
-                        GradientStop { position: 1; color: "#ad3974" }
-                    }
-
-                    Text {
-                        anchors.centerIn: parent
-                        text: "›"
-                        font.pixelSize: 24
-                        color: "white"
-                    }
-                }
-            }
-
-            MouseArea {
-                anchors.fill: parent
-                onClicked: root.playClicked()
-            }
-        }
-
-        WRCard {
-            width: parent.width
-            height: 154
-            radius: 28
-
-            Row {
-                anchors.fill: parent
-                anchors.margins: 22
-                spacing: 16
-
-                Column {
-                    width: parent.width - 110
-                    spacing: 8
-
-                    Text {
-                        text: qsTr("Gallery")
-                        font.pixelSize: 26
-                        font.bold: true
-                        color: "#35111f"
-                    }
-
-                    Text {
-                        text: qsTr("Discovered images")
-                        font.pixelSize: 14
-                        color: "#6b3a4f"
+                        Text {
+                            anchors.centerIn: parent
+                            text: "+"
+                            font.pixelSize: 20
+                            color: appStateManager ? appStateManager.themeTextStrong : "#401425"
+                        }
                     }
                 }
 
-                Rectangle {
-                    width: 92
-                    height: 92
-                    radius: 28
-
-                    gradient: Gradient {
-                        GradientStop { position: 0; color: "#fff4f9" }
-                        GradientStop { position: 1; color: "#f58ab6" }
-                    }
-
-                    Text {
-                        anchors.centerIn: parent
-                        text: root.unlockedImages + "/" + root.totalImages
-                        font.pixelSize: 20
-                        font.bold: true
-                        color: "#401425"
-                    }
+                MouseArea {
+                    anchors.fill: parent
+                    onClicked: root.settingsClicked()
                 }
-            }
-
-            MouseArea {
-                anchors.fill: parent
-                onClicked: root.galleryClicked()
-            }
-        }
-
-        WRCard {
-            width: parent.width
-            height: 96
-            radius: 24
-
-            Row {
-                anchors.fill: parent
-                anchors.margins: 20
-                spacing: 16
-
-                Column {
-                    width: parent.width - 80
-                    spacing: 6
-
-                    Text {
-                        text: qsTr("Settings")
-                        font.pixelSize: 24
-                        font.bold: true
-                        color: "#35111f"
-                    }
-
-                    Text {
-                        text: qsTr("Selected preferences")
-                        font.pixelSize: 14
-                        color: "#6b3a4f"
-                    }
-                }
-
-                Rectangle {
-                    width: 42
-                    height: 42
-                    radius: 21
-
-                    gradient: Gradient {
-                        GradientStop { position: 0; color: "#fff7fb" }
-                        GradientStop { position: 1; color: "#e969a1" }
-                    }
-
-                    Text {
-                        anchors.centerIn: parent
-                        text: "+"
-                        font.pixelSize: 20
-                        color: "#401425"
-                    }
-                }
-            }
-
-            MouseArea {
-                anchors.fill: parent
-                onClicked: root.settingsClicked()
             }
         }
     }

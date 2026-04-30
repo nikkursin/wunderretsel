@@ -15,8 +15,8 @@ Rectangle {
 
     border.width: 1
     border.color: root.selected
-                  ? Qt.rgba(0.93, 0.30, 0.56, 0.5)
-                  : Qt.rgba(0.36, 0.10, 0.22, 0.1)
+                  ? (appStateManager ? appStateManager.themeControlBorder : Qt.rgba(0.93, 0.30, 0.56, 0.5))
+                  : (appStateManager ? appStateManager.themeTileBorder : Qt.rgba(0.36, 0.10, 0.22, 0.1))
 
     color: root.selected
            ? Qt.rgba(1, 0.92, 0.95, 0.95)
@@ -34,7 +34,9 @@ Rectangle {
     Text {
         anchors.centerIn: parent
         text: root.text
-        color: root.selected ? "#b83268" : "#3c172b"
+        color: root.selected
+               ? (appStateManager ? appStateManager.themeControlText : "#b83268")
+               : (appStateManager ? appStateManager.themeTextPrimary : "#3c172b")
         font.pixelSize: 16
         font.weight: Font.Bold
     }

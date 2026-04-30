@@ -7,7 +7,7 @@ Item {
     property string title: "Gallery"
     property string subtitle: "Discovered images"
     property string value: "0/0"
-    property real progress: 0.0   // 0.0 - 1.0
+    property real progress: 0.0
 
     width: parent ? parent.width : 320
     height: 170
@@ -56,7 +56,7 @@ Item {
 
                 Item { width: 1; height: 1; Layout.fillWidth: true }
 
-                Rectangle { // TODO: Fix alignment as on Figma layout
+                Rectangle {
                     width: 80
                     height: 80
                     radius: 24

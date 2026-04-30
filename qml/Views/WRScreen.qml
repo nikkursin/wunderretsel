@@ -23,12 +23,12 @@ AppPage {
 
         gradient: Gradient {
             orientation: Gradient.Vertical
-            GradientStop { position: 0.0; color: "#fff7fa" }
-            GradientStop { position: 0.44; color: "#f8dce8" }
-            GradientStop { position: 1.0; color: "#e9adc5" }
+            GradientStop { position: 0.0; color: appStateManager ? appStateManager.themeTintLight : "#fff7fa" }
+            GradientStop { position: 0.44; color: appStateManager ? appStateManager.themeTintMid : "#f8dce8" }
+            GradientStop { position: 1.0; color: appStateManager ? appStateManager.themeTintDeep : "#e9adc5" }
         }
 
-        Item { // TODO: Need more improvement according to what was given on the UI design
+        Item {
             id: glowLayer
             anchors.fill: parent
 
@@ -57,7 +57,7 @@ AppPage {
                 radius: width / 2
                 x: parent.width * 0.55
                 y: -height * 0.18
-                color: "#F7D5E4"
+                color: appStateManager ? appStateManager.themeTintMid : "#F7D5E4"
                 opacity: 0.42
             }
 
@@ -75,7 +75,7 @@ AppPage {
                 radius: width / 2
                 x: parent.width * 0.08
                 y: parent.height - height * 0.36
-                color: "#DE9BB8"
+                color: appStateManager ? appStateManager.themeTintDeep : "#DE9BB8"
                 opacity: 0.18
             }
 
@@ -121,10 +121,10 @@ AppPage {
                 height: 46
 
                 text: root.screenTitle
-                font.pixelSize: 42
+                font.pixelSize: 36
                 font.family: titleFont.name
                 font.weight: Font.Bold
-                color: "#34101f"
+                color: appStateManager ? appStateManager.themeTextPrimary : "#34101f"
 
                 horizontalAlignment: Text.AlignHCenter
                 verticalAlignment: Text.AlignVCenter

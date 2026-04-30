@@ -41,6 +41,9 @@ App {
         id: playComponent
         WRPlayScreen {
             showBackButton: true
+            // onBackClicked: appStateManager.goHome()
+            onGalleryClicked: appStateManager.goGallery()
+            onNextPuzzleClicked: appStateManager.goPlay()
         }
     }
 

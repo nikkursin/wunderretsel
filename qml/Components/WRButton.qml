@@ -16,11 +16,15 @@ Rectangle {
     gradient: Gradient {
         GradientStop {
             position: 0
-            color: root.enabled ? "#ef4f91" : "#f2a6c3"
+            color: root.enabled
+                   ? (appStateManager ? appStateManager.themeAccentStart : "#ef4f91")
+                   : (appStateManager ? appStateManager.themeAccentSoftEnd : "#f2a6c3")
         }
         GradientStop {
             position: 1
-            color: root.enabled ? "#d93279" : "#e3a9bf"
+            color: root.enabled
+                   ? (appStateManager ? appStateManager.themeAccentEnd : "#d93279")
+                   : (appStateManager ? appStateManager.themeAccentSoftStart : "#e3a9bf")
         }
     }
 

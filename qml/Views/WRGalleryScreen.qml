@@ -5,87 +5,230 @@ import "../Components"
 WRScreen {
     id: root
 
-    signal backClicked()
-    signal imageClicked(int index)
+    signal imageClicked(int imageId, string imageSource)
+    property bool imageViewerOpen: false
+    property string selectedImageSource: ""
 
     showBackButton: true
-    onBackClicked: root.backClicked()
 
     ColumnLayout {
         anchors.fill: parent
         anchors.margins: 16
-        spacing: 16
-
-        WRProgressCard {
-            Layout.fillWidth: true
-        }
+        spacing: 14
 
         WRCard {
-            id: galleryGridCard
-            Layout.fillWidth: true
-            Layout.fillHeight: true  // now actually works
+            id: galleryCard
+            Layout.fillWidth:  true
+            Layout.fillHeight: true
             interactive: false
 
-            property int itemCount: 24
-            property int columnsCount: 3
-            property int gap: 12
-            property int innerPadding: 16
-            property real tileSize: (width - innerPadding * 2 - gap * (columnsCount - 1)) / columnsCount
+            readonly property int columnsCount: 3
+            readonly property int gap: 12
+            readonly property int innerPadding: 18
+            readonly property real availableWidth:
+                width - innerPadding * 2
+            readonly property real tileSize:
+                Math.max(48,
+                         (availableWidth - gap * (columnsCount - 1))
+                         / columnsCount)
 
-            Flickable {
-                id: flick
+            ColumnLayout {
                 anchors.fill: parent
-                anchors.margins: galleryGridCard.innerPadding
-                contentWidth: width
-                contentHeight: grid.implicitHeight
-                clip: true
-                boundsBehavior: Flickable.StopAtBounds
+                anchors.margins: galleryCard.innerPadding
+                spacing: 16
 
-                Grid {
-                    id: grid
-                    width: flick.width
-                    columns: galleryGridCard.columnsCount
-                    spacing: galleryGridCard.gap
+                RowLayout {
+                    Layout.fillWidth: true
+                    spacing: 12
 
-                    Repeater {
-                        model: galleryGridCard.itemCount
-                        WRGalleryTile {
-                            width: galleryGridCard.tileSize
-                            height: galleryGridCard.tileSize
-                            imageSource: "qrc:/assets/images/female/sample.jpg"
-                            unlocked: index % 2 === 0
-                            blurred: !unlocked
-                            onClicked: root.imageClicked(index)
+                    Column {
+                        Layout.fillWidth: true
+                        Layout.alignment: Qt.AlignVCenter
+                        spacing: 4
+
+                        Text {
+                            text: qsTr("Gallery")
+                            font.pixelSize: 24
+                            font.weight: Font.Bold
+                            color: appStateManager ? appStateManager.themeTextPrimary : "#35111f"
                         }
+                        Text {
+                            text: qsTr("Discovered images")
+                            font.pixelSize: 13
+                            font.weight: Font.DemiBold
+                            color: appStateManager ? appStateManager.themeTextSecondary : Qt.rgba(0.42, 0.23, 0.31, 0.72)
+                        }
+                    }
+
+                    Rectangle {
+                        id: counterBadge
+                        Layout.alignment: Qt.AlignVCenter | Qt.AlignRight
+                        width:  78
+                        height: 78
+                        radius: 24
+
+                        gradient: Gradient {
+                            GradientStop { position: 0.0; color: appStateManager ? appStateManager.themeAccentSoftStart : "#fff4f9" }
+                            GradientStop { position: 1.0; color: appStateManager ? appStateManager.themeAccentSoftEnd : "#f58ab6" }
+                        }
+                        border.width: 1
+                        border.color: appStateManager ? appStateManager.themeTileBorder : Qt.rgba(0.45, 0.15, 0.3, 0.10)
+
+                        Text {
+                            anchors.centerIn: parent
+                            text: (appStateManager
+                                       ? appStateManager.unlockedImagesCount
+                                       : 0)
+                                  + "/"
+                                  + (appStateManager
+                                       ? appStateManager.totalImagesCount
+                                       : 0)
+                            font.pixelSize: 19
+                            font.weight: Font.Black
+                            color: appStateManager ? appStateManager.themeTextStrong : "#401425"
+                        }
+                    }
+                }
+
+                Item {
+                    Layout.fillWidth:  true
+                    Layout.fillHeight: true
+
+                    Flickable {
+                        id: flick
+                        anchors.fill: parent
+                        contentWidth: width
+                        contentHeight: imageGrid.height
+                        clip: true
+                        boundsBehavior: Flickable.StopAtBounds
+
+                        Grid {
+                            id: imageGrid
+                            width: flick.width
+                            columns: galleryCard.columnsCount
+                            spacing: galleryCard.gap
+
+                            Repeater {
+                                model: appStateManager
+                                       ? appStateManager.galleryImages
+                                       : []
+
+                                WRGalleryTile {
+                                    width:  galleryCard.tileSize
+                                    height: galleryCard.tileSize
+                                    imageSource: modelData.source
+                                    unlocked:    modelData.unlocked
+                                    onClicked: {
+                                        root.selectedImageSource = modelData.source
+                                        root.imageViewerOpen = true
+                                        root.imageClicked(modelData.id, modelData.source)
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    Text {
+                        anchors.centerIn: parent
+                        visible: appStateManager
+                                 && appStateManager.totalImagesCount === 0
+                        text: qsTr("No images available yet.")
+                        font.pixelSize: 14
+                        color: Qt.rgba(0.23, 0.09, 0.15, 0.55)
                     }
                 }
             }
         }
 
         Row {
-             spacing: 8
+            Layout.alignment: Qt.AlignHCenter
+            spacing: 8
 
-             Rectangle {
-                 width: 14
-                 height: 14
-                 radius: 7
-                 color: Qt.rgba(0.86, 0.24, 0.52, 0.16)
+            Rectangle {
+                width: 14; height: 14; radius: 7
+                color: appStateManager ? appStateManager.themeTileVeil : Qt.rgba(0.86, 0.24, 0.52, 0.16)
 
-                 Rectangle {
-                     anchors.centerIn: parent
-                     width: 6
-                     height: 6
-                     radius: 3
-                     color: "#d94b86"
-                 }
-             }
+                Rectangle {
+                    anchors.centerIn: parent
+                    width: 6; height: 6; radius: 3
+                    color: appStateManager ? appStateManager.themeAccentStart : "#d94b86"
+                }
+            }
 
-             Text {
-                 text: "Progress grows after completed puzzles"
-                 font.pixelSize: 13
-                 font.weight: Font.DemiBold
-                 color: Qt.rgba(0.23, 0.09, 0.15, 0.62)
-             }
+            Text {
+                text: qsTr("Solve puzzles to unlock more images")
+                font.pixelSize: 13
+                font.weight: Font.DemiBold
+                color: appStateManager ? appStateManager.themeTextSecondary : Qt.rgba(0.23, 0.09, 0.15, 0.62)
+            }
+        }
+    }
+
+    Rectangle {
+        anchors.fill: parent
+        visible: root.imageViewerOpen
+        z: 200
+        color: Qt.rgba(0, 0, 0, 0.74)
+
+        MouseArea {
+            anchors.fill: parent
+            onClicked: root.imageViewerOpen = false
+        }
+
+        Rectangle {
+            id: imageFrame
+            anchors.centerIn: parent
+            width: parent.width - 36
+            height: parent.height - 120
+            radius: 24
+            color: Qt.rgba(1, 1, 1, 0.96)
+            border.width: 1
+            border.color: appStateManager ? appStateManager.themeControlBorder : Qt.rgba(0.4, 0.2, 0.3, 0.24)
+            clip: true
+            scale: root.imageViewerOpen ? 1.0 : 0.94
+            Behavior on scale {
+                NumberAnimation { duration: 140; easing.type: Easing.OutCubic }
+            }
+
+            MouseArea {
+                anchors.fill: parent
+                onClicked: {}
+            }
+
+            Image {
+                anchors.fill: parent
+                anchors.margins: 12
+                source: root.selectedImageSource
+                fillMode: Image.PreserveAspectCrop
+                smooth: true
+                asynchronous: true
+                cache: true
+            }
+        }
+
+        Rectangle {
+            id: closeButton
+            anchors.top: imageFrame.top
+            anchors.right: imageFrame.right
+            anchors.topMargin: 10
+            anchors.rightMargin: 10
+            width: 36
+            height: 36
+            radius: 18
+            color: Qt.rgba(0, 0, 0, 0.44)
+
+            Text {
+                anchors.centerIn: parent
+                text: "X"
+                font.pixelSize: 16
+                font.bold: true
+                color: "white"
+            }
+
+            MouseArea {
+                anchors.fill: parent
+                onClicked: root.imageViewerOpen = false
+            }
         }
     }
 }
